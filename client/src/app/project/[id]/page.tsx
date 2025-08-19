@@ -152,7 +152,7 @@ export default function ProjectPage() {
     try {
       const token = localStorage.getItem('token');
       await axios.patch(
-        `http://localhost:5000/api/tasks/${taskId}/status`,
+        `${process.env.NEXT_PUBLIC_API_URL}5000/api/tasks/${taskId}/status`,
         { status: newStatus },
         { headers: { 'x-auth-token': token } }
       );

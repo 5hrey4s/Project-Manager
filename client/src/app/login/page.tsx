@@ -1,8 +1,9 @@
 'use client'; // For App Router
 
 import { useState } from 'react';
-import axios from 'axios';
 import { useRouter } from 'next/navigation';
+import axios, { isAxiosError } from 'axios';
+
 // If using Next.js Pages Router, you might use `useRouter` for redirection
 // import { useRouter } from 'next/router'; 
 
@@ -26,7 +27,7 @@ export default function Login() {
     setMessage('');
 
     try {
-      const response = await axios.post('http://localhost:5000/api/users/login', formData);
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}api/users/login`, formData);
       
       // *** IMPORTANT: Store the token ***
       localStorage.setItem('token', response.data.token);
@@ -36,10 +37,14 @@ export default function Login() {
       // window.location.href = '/dashboard'; // Simple redirect
       router.push('/dashboard'); // Better, Next.js way
 
-    } catch (error: any) {
-        console.log(error)
+    } catch (error: unknown) {
+    if (isAxiosError(error) && error.response) {
       setMessage(error.response.data.msg || 'Login failed. Please check your credentials.');
+    } else {
+      setMessage('An unexpected error occurred. Please try again later.');
+      console.error(error); // Log the full error for debugging
     }
+  }
   };
 
   return (

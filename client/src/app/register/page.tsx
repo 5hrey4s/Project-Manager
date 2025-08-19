@@ -28,15 +28,21 @@ export default function Register() {
     setMessage(''); // Clear previous messages
 
     try {
-      const response = await axios.post('http://localhost:5000/api/users/register', formData);
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}api/users/register`, formData);
       console.log('Registration successful:', response.data);
       setMessage(`Welcome, ${response.data.username}! Registration successful.`);
       // Optionally, redirect the user or clear the form
       setFormData({ username: '', email: '', password: '' });
-    } catch (error: any) {
-      console.error('Registration failed:', error.response.data);
-      setMessage(error.response.data.msg || 'Registration failed. Please try again.');
+    } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      // It's an Axios error, so we can safely access response data
+      setMessage(error.response?.data.msg || 'Registration failed. Please try again.');
+    } else {
+      // It's a different kind of error (e.g., a network issue)
+      console.error(error);
+      setMessage('An unexpected error occurred.');
     }
+  }
   };
 
   return (

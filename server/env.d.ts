@@ -7,5 +7,6 @@ declare namespace NodeJS {
         readonly DB_PORT: string
         readonly DB_DATABASE: string
         readonly DB_HOST: string
+        readonly NEXT_PUBLIC_API_URL: string
     }
 }
