@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import Link from 'next/link';
@@ -8,7 +8,7 @@ import { io, Socket } from 'socket.io-client';
 
 // Dnd-kit imports
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
 
@@ -25,14 +25,13 @@ interface Task {
 
 // --- Reusable UI Components ---
 
-// TaskCard Component: Represents a single draggable task
 function TaskCard({ task }: { task: Task }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1, // Make the card semi-transparent while dragging
+    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
@@ -41,14 +40,13 @@ function TaskCard({ task }: { task: Task }) {
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-white p-3 mb-3 rounded-md shadow touch-none" // touch-none is important for mobile devices
+      className="bg-white p-3 mb-3 rounded-md shadow touch-none"
     >
       {task.title}
     </div>
   );
 }
 
-// Column Component: Represents a droppable column (e.g., "To Do")
 function Column({ id, title, tasks }: { id: TaskStatus, title: string, tasks: Task[] }) {
   const { setNodeRef } = useDroppable({ id });
 
@@ -73,15 +71,20 @@ export default function ProjectPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // --- NEW: State for Invite Form ---
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+  
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
 
   useEffect(() => {
-    // ... (This useEffect for fetching data and socket connection remains the same)
+    // ... (Your existing useEffect for fetching data and sockets remains the same)
     if (!projectId) return;
 
-    const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL);
+    const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL!);
 
     const fetchInitialTasks = async () => {
       const token = localStorage.getItem('token');
@@ -90,7 +93,7 @@ export default function ProjectPage() {
         return;
       }
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/${projectId}/tasks`, {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/tasks`, {
           headers: { 'x-auth-token': token },
         });
         setTasks(response.data);
@@ -116,21 +119,16 @@ export default function ProjectPage() {
   }, [projectId, router]);
 
   const sensors = useSensors(useSensor(PointerSensor, {
-    // Require the mouse to move by 10 pixels before activating a drag
     activationConstraint: {
       distance: 10,
     },
   }));
 
   const handleDragEnd = (event: DragEndEvent) => {
+    // ... (Your existing handleDragEnd function remains the same)
     const { active, over } = event;
-    
-    // --- Add this console.log for debugging ---
-    console.log('DRAG END EVENT:', { activeId: active.id, overId: over?.id });
 
-    if (!over) {
-      return;
-    }
+    if (!over) return;
 
     const activeTaskId = active.id;
     const destinationColumnId = over.id as TaskStatus;
@@ -138,17 +136,17 @@ export default function ProjectPage() {
 
     if (draggedTask && draggedTask.status !== destinationColumnId) {
       setTasks(prevTasks => {
-        const activeIndex = prevTasks.findIndex(t => t.id === activeTaskId);
-        // Update the status of the dragged task
-        prevTasks[activeIndex].status = destinationColumnId;
-        return arrayMove(prevTasks, activeIndex, activeIndex); // arrayMove helps re-render correctly
+        const updatedTasks = prevTasks.map(task => 
+          task.id === activeTaskId ? { ...task, status: destinationColumnId } : task
+        );
+        return updatedTasks;
       });
-
       handleStatusChange(activeTaskId as number, destinationColumnId);
     }
   };
   
   const handleStatusChange = async (taskId: number, newStatus: TaskStatus) => {
+    // ... (Your existing handleStatusChange function remains the same)
     try {
       const token = localStorage.getItem('token');
       await axios.patch(
@@ -158,6 +156,32 @@ export default function ProjectPage() {
       );
     } catch (error) {
       console.error('Failed to update task status:', error);
+    }
+  };
+
+  // --- NEW: Function to handle inviting a member ---
+  const handleInvite = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setInviteMessage('');
+    setIsInviting(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/members`,
+        { email: inviteEmail },
+        { headers: { 'x-auth-token': token } }
+      );
+      setInviteMessage(`Successfully invited ${inviteEmail}!`);
+      setInviteEmail(''); // Clear the input field on success
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        setInviteMessage(error.response?.data.msg || 'Invitation failed.');
+      } else {
+        setInviteMessage('An unexpected error occurred.');
+      }
+    } finally {
+      setIsInviting(false);
     }
   };
 
@@ -171,10 +195,34 @@ export default function ProjectPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
-      <header className="mb-8">
-        <Link href="/dashboard" className="text-indigo-600 hover:underline mb-4 inline-block">&larr; Back to Dashboard</Link>
-        <h1 className="text-3xl font-bold">Kanban Board</h1>
+      <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+        <div>
+            <Link href="/dashboard" className="text-indigo-600 hover:underline mb-2 inline-block">&larr; Back to Dashboard</Link>
+            <h1 className="text-3xl font-bold">Kanban Board</h1>
+        </div>
+        {/* --- NEW: Invite Member Form --- */}
+        <div className="mt-4 sm:mt-0 w-full sm:w-auto">
+            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row items-stretch gap-2 bg-white p-3 rounded-lg shadow-sm">
+                <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="Invite user by email"
+                    className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    required
+                />
+                <button
+                    type="submit"
+                    disabled={isInviting}
+                    className="px-4 py-2 font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
+                >
+                    {isInviting ? 'Sending...' : 'Invite'}
+                </button>
+            </form>
+            {inviteMessage && <p className="mt-2 text-center text-sm text-gray-600">{inviteMessage}</p>}
+        </div>
       </header>
+      
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {columnDefinitions.map(({ id, title }) => (
