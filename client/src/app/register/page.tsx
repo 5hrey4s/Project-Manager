@@ -28,7 +28,7 @@ export default function Register() {
     setMessage(''); // Clear previous messages
 
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}api/users/register`, formData);
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/users/register`, formData);
       console.log('Registration successful:', response.data);
       setMessage(`Welcome, ${response.data.username}! Registration successful.`);
       // Optionally, redirect the user or clear the form

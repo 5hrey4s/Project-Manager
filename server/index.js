@@ -62,10 +62,10 @@ const pool = new Pool({
 // --- API Routes ---
 
 // Test route (you can keep or remove this)
-app.get('test-db', async (req, res) => { /* ... */ });
+app.get('/test-db', async (req, res) => { /* ... */ });
 
 // POST /api/users/register - New User Registration
-app.post('api/users/register', async (req, res) => {
+app.post('/api/users/register', async (req, res) => {
     try {
         const { username, email, password } = req.body;
 
@@ -98,7 +98,7 @@ app.post('api/users/register', async (req, res) => {
 });
 
 // POST /api/users/login - User Login
-app.post('api/users/login', async (req, res) => {
+app.post('/api/users/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -146,7 +146,7 @@ app.post('api/users/login', async (req, res) => {
 
 // GET /api/auth/user - Get Logged In User Data (Protected)
 // The 'auth' middleware will run before the main (req, res) function
-app.get('api/auth/user', auth, async (req, res) => {
+app.get('/api/auth/user', auth, async (req, res) => {
     try {
         // The user's id is available in req.user.id from the auth middleware
         const user = await pool.query("SELECT id, username, email FROM users WHERE id = $1", [req.user.id]);
@@ -158,7 +158,7 @@ app.get('api/auth/user', auth, async (req, res) => {
 });
 
 // POST /api/projects - Create a new project (Protected)
-app.post('api/projects', auth, async (req, res) => {
+app.post('/api/projects', auth, async (req, res) => {
     try {
         const { name, description } = req.body;
         const ownerId = req.user.id; // Get the user's ID from the auth middleware
@@ -184,7 +184,7 @@ app.post('api/projects', auth, async (req, res) => {
 });
 
 // GET /api/projects - Get all projects for a user (Protected)
-app.get('api/projects', auth, async (req, res) => {
+app.get('/api/projects', auth, async (req, res) => {
     try {
         const projects = await pool.query(
             "SELECT * FROM projects WHERE owner_id = $1 ORDER BY created_at DESC",
@@ -199,7 +199,7 @@ app.get('api/projects', auth, async (req, res) => {
 });
 
 // POST /api/tasks - Create a new task for a project (Protected)
-app.post('api/tasks', auth, async (req, res) => {
+app.post('/api/tasks', auth, async (req, res) => {
     try {
         const { title, projectId } = req.body;
         if (!title || !projectId) {
@@ -219,7 +219,7 @@ app.post('api/tasks', auth, async (req, res) => {
 });
 
 // GET /api/projects/:id/tasks - Get all tasks for a specific project (Protected)
-app.get('api/projects/:projectId/tasks', auth, async (req, res) => {
+app.get('/api/projects/:projectId/tasks', auth, async (req, res) => {
     try {
         const { projectId } = req.params;
         const tasks = await pool.query(
@@ -235,7 +235,7 @@ app.get('api/projects/:projectId/tasks', auth, async (req, res) => {
 
 
 // PATCH /api/tasks/:id/status - Update a task's status (Protected)
-app.patch('api/tasks/:taskId/status', auth, async (req, res) => {
+app.patch('/api/tasks/:taskId/status', auth, async (req, res) => {
     try {
         const { taskId } = req.params;
         const { status } = req.body;

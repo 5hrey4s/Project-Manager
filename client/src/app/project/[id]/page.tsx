@@ -90,7 +90,7 @@ export default function ProjectPage() {
         return;
       }
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}${projectId}/tasks`, {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/${projectId}/tasks`, {
           headers: { 'x-auth-token': token },
         });
         setTasks(response.data);
@@ -152,7 +152,7 @@ export default function ProjectPage() {
     try {
       const token = localStorage.getItem('token');
       await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}api/tasks/${taskId}/status`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}/status`,
         { status: newStatus },
         { headers: { 'x-auth-token': token } }
       );

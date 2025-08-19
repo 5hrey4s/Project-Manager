@@ -38,8 +38,8 @@ export default function Dashboard() {
       try {
         // Fetch user and projects in parallel for efficiency
         const [userResponse, projectsResponse] = await Promise.all([
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}api/auth/user`, axiosConfig),
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}api/projects`, axiosConfig),
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/user`, axiosConfig),
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`, axiosConfig),
         ]);
         setUser(userResponse.data);
         setProjects(projectsResponse.data);
@@ -63,7 +63,7 @@ export default function Dashboard() {
     const token = localStorage.getItem('token');
     try {
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}api/projects`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/projects`,
         { name: newProjectName },
         { headers: { 'x-auth-token': token } }
       );
