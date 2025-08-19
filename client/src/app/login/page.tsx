@@ -27,7 +27,7 @@ export default function Login() {
     setMessage('');
 
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}api/users/login`, formData);
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/users/login`, formData);
       
       // *** IMPORTANT: Store the token ***
       localStorage.setItem('token', response.data.token);
