@@ -52,6 +52,11 @@ io.on('connection', (socket) => {
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+
+    // This is the crucial part for production databases
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 // --- API Routes ---
