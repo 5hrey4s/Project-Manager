@@ -81,7 +81,7 @@ export default function ProjectPage() {
     // ... (This useEffect for fetching data and socket connection remains the same)
     if (!projectId) return;
 
-    const socket: Socket = io("http://localhost:5000");
+    const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL);
 
     const fetchInitialTasks = async () => {
       const token = localStorage.getItem('token');
@@ -90,7 +90,7 @@ export default function ProjectPage() {
         return;
       }
       try {
-        const response = await axios.get(`http://localhost:5000/api/projects/${projectId}/tasks`, {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}${projectId}/tasks`, {
           headers: { 'x-auth-token': token },
         });
         setTasks(response.data);
@@ -152,7 +152,7 @@ export default function ProjectPage() {
     try {
       const token = localStorage.getItem('token');
       await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}5000/api/tasks/${taskId}/status`,
+        `${process.env.NEXT_PUBLIC_API_URL}api/tasks/${taskId}/status`,
         { status: newStatus },
         { headers: { 'x-auth-token': token } }
       );
