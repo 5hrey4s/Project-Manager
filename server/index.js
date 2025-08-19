@@ -113,18 +113,37 @@ app.get('/api/auth/user', auth, async (req, res) => {
     }
 });
 
-// Create a new project
+// server/index.js
+
+// POST /api/projects - Create a new project (Protected)
 app.post('/api/projects', auth, async (req, res) => {
     try {
         const { name, description } = req.body;
+        const ownerId = req.user.id;
+
         if (!name) {
             return res.status(400).json({ msg: 'Project name is required' });
         }
-        const newProject = await pool.query(
-            "INSERT INTO projects (name, description, owner_id) VALUES ($1, $2, $3) RETURNING *",
-            [name, description || null, req.user.id]
+
+        // 1. Insert the new project into the database
+        const newProjectResult = await pool.query(
+            "INSERT INTO projects (name, description, owner_id) VALUES ($1, S$2, $3) RETURNING *",
+            [name, description || null, ownerId]
         );
-        res.status(201).json(newProject.rows[0]);
+
+        const newProject = newProjectResult.rows[0];
+
+        // --- NEW: Add the owner to the project_members table ---
+        // This ensures the creator is officially a member of their own project.
+        await pool.query(
+            "INSERT INTO project_members (project_id, user_id) VALUES ($1, $2)",
+            [newProject.id, ownerId]
+        );
+        // --- End of new code ---
+
+        // 3. Send back the newly created project
+        res.status(201).json(newProject);
+
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -196,6 +215,48 @@ app.patch('/api/tasks/:taskId/status', auth, async (req, res) => {
         io.to(updatedTask.project_id.toString()).emit('task_updated', updatedTask);
         res.json(updatedTask);
     } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// POST /api/projects/:projectId/members - Add a user to a project (Invite)
+app.post('/api/projects/:projectId/members', auth, async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const { email } = req.body; // The email of the user to invite
+        const inviterId = req.user.id; // The person making the request
+
+        // 1. Find the user to invite by their email
+        const userToInviteResult = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+        if (userToInviteResult.rows.length === 0) {
+            return res.status(404).json({ msg: 'User with that email does not exist.' });
+        }
+        const userToInviteId = userToInviteResult.rows[0].id;
+
+        // 2. Security Check: Verify that the person making the request is the project owner
+        const projectResult = await pool.query("SELECT owner_id FROM projects WHERE id = $1", [projectId]);
+        if (projectResult.rows.length === 0) {
+            return res.status(404).json({ msg: 'Project not found.' });
+        }
+
+        if (projectResult.rows[0].owner_id !== inviterId) {
+            return res.status(403).json({ msg: 'Forbidden: Only the project owner can invite members.' });
+        }
+
+        // 3. Add the new user to the project_members table
+        await pool.query(
+            "INSERT INTO project_members (project_id, user_id) VALUES ($1, $2)",
+            [projectId, userToInviteId]
+        );
+
+        res.status(201).json({ msg: 'User successfully added to the project.' });
+
+    } catch (err) {
+        // Handle cases where the user is already a member (unique constraint violation)
+        if (err.code === '23505') {
+            return res.status(400).json({ msg: 'User is already a member of this project.' });
+        }
         console.error(err.message);
         res.status(500).send('Server Error');
     }
