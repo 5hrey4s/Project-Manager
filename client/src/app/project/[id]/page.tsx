@@ -12,7 +12,6 @@ import { SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
 
-
 // --- Define Types ---
 type TaskStatus = 'To Do' | 'In Progress' | 'Done';
 
@@ -21,17 +20,16 @@ interface Task {
   title: string;
   status: TaskStatus;
   project_id: number;
-    assignee_id: number | null; // NEW: Add assignee_id
-
+  assignee_id: number | null;
 }
 
-interface Member { // NEW: Type for project members
+interface Member {
   id: number;
   username: string;
 }
+
 // --- Reusable UI Components ---
 
-// UPDATED: TaskCard component now handles assignment
 function TaskCard({ task, members, onAssign }: { task: Task; members: Member[]; onAssign: (taskId: number, assigneeId: number | null) => void; }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
@@ -40,9 +38,9 @@ function TaskCard({ task, members, onAssign }: { task: Task; members: Member[]; 
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  
+
   const assignee = members.find(m => m.id === task.assignee_id);
-  
+
   const handleAssignmentChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const newAssigneeId = e.target.value === 'unassigned' ? null : parseInt(e.target.value, 10);
     onAssign(task.id, newAssigneeId);
@@ -53,19 +51,19 @@ function TaskCard({ task, members, onAssign }: { task: Task; members: Member[]; 
       <p className="font-medium text-gray-800">{task.title}</p>
       <div className="mt-3 flex justify-between items-center">
         <div className="flex items-center">
-            <select
-              value={task.assignee_id ?? 'unassigned'}
-              onChange={handleAssignmentChange}
-              onClick={(e) => e.stopPropagation()} // Prevents drag from starting on click
-              className="text-xs p-1 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none"
-            >
-              <option value="unassigned">Unassigned</option>
-              {members.map(member => (
-                <option key={member.id} value={member.id}>
-                  {member.username}
-                </option>
-              ))}
-            </select>
+          <select
+            value={task.assignee_id ?? 'unassigned'}
+            onChange={handleAssignmentChange}
+            onClick={(e) => e.stopPropagation()} // Prevents drag from starting on click
+            className="text-xs p-1 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none"
+          >
+            <option value="unassigned">Unassigned</option>
+            {members.map(member => (
+              <option key={member.id} value={member.id}>
+                {member.username}
+              </option>
+            ))}
+          </select>
         </div>
         {assignee && (
           <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold" title={assignee.username}>
@@ -77,65 +75,63 @@ function TaskCard({ task, members, onAssign }: { task: Task; members: Member[]; 
   );
 }
 
-// Column Component (no changes)
 function Column({ id, title, tasks, members, onAssign }: { id: TaskStatus; title: string; tasks: Task[]; members: Member[]; onAssign: (taskId: number, assigneeId: number | null) => void; }) {
-    const { setNodeRef } = useDroppable({ id });
-    return (
-        <div ref={setNodeRef} className="bg-gray-200 p-4 rounded-lg shadow-inner w-full">
-            <h2 className="font-bold mb-4 text-lg text-gray-800">{title}</h2>
-            <SortableContext id={id} items={tasks}>
-                {tasks.map(task => (
-                    <TaskCard key={task.id} task={task} members={members} onAssign={onAssign} />
-                ))}
-            </SortableContext>
-        </div>
-    );
+  const { setNodeRef } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className="bg-gray-200 p-4 rounded-lg shadow-inner w-full">
+      <h2 className="font-bold mb-4 text-lg text-gray-800">{title}</h2>
+      <SortableContext id={id} items={tasks}>
+        {tasks.map(task => (
+          <TaskCard key={task.id} task={task} members={members} onAssign={onAssign} />
+        ))}
+      </SortableContext>
+    </div>
+  );
 }
-
 
 // --- Main Page Component ---
 export default function ProjectPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [members, setMembers] = useState<Member[]>([]); // NEW: State for members
-
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // --- NEW: State for Invite Form ---
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteMessage, setInviteMessage] = useState('');
   const [isInviting, setIsInviting] = useState(false);
-  
+
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
 
   useEffect(() => {
-    // ... (Your existing useEffect for fetching data and sockets remains the same)
     if (!projectId) return;
 
     const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL!);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    const axiosConfig = { headers: { 'x-auth-token': token } };
 
-    const fetchInitialTasks = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
+    const fetchData = async () => {
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/tasks`, {
-          headers: { 'x-auth-token': token },
-        });
-        setTasks(response.data);
+        const [tasksResponse, membersResponse] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/tasks`, axiosConfig),
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/members`, axiosConfig)
+        ]);
+        setTasks(tasksResponse.data);
+        setMembers(membersResponse.data);
       } catch (error) {
-        console.error('Failed to fetch tasks', error);
+        console.error('Failed to fetch project data', error);
+        router.push('/dashboard'); // Redirect if user doesn't have access
       } finally {
         setLoading(false);
       }
     };
 
-    fetchInitialTasks();
-    socket.emit('join_project', projectId);
+    fetchData();
 
+    socket.emit('join_project', projectId);
     socket.on('task_updated', (updatedTask: Task) => {
       if (updatedTask.project_id.toString() === projectId) {
         setTasks(prevTasks => prevTasks.map(task => task.id === updatedTask.id ? updatedTask : task));
@@ -147,35 +143,23 @@ export default function ProjectPage() {
     };
   }, [projectId, router]);
 
-  const sensors = useSensors(useSensor(PointerSensor, {
-    activationConstraint: {
-      distance: 10,
-    },
-  }));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 10 } }));
 
   const handleDragEnd = (event: DragEndEvent) => {
-    // ... (Your existing handleDragEnd function remains the same)
     const { active, over } = event;
-
     if (!over) return;
-
     const activeTaskId = active.id;
     const destinationColumnId = over.id as TaskStatus;
     const draggedTask = tasks.find(task => task.id === activeTaskId);
-
     if (draggedTask && draggedTask.status !== destinationColumnId) {
-      setTasks(prevTasks => {
-        const updatedTasks = prevTasks.map(task => 
-          task.id === activeTaskId ? { ...task, status: destinationColumnId } : task
-        );
-        return updatedTasks;
-      });
       handleStatusChange(activeTaskId as number, destinationColumnId);
     }
   };
-  
+
   const handleStatusChange = async (taskId: number, newStatus: TaskStatus) => {
-    // ... (Your existing handleStatusChange function remains the same)
+    setTasks(prevTasks => prevTasks.map(task =>
+      task.id === taskId ? { ...task, status: newStatus } : task
+    ));
     try {
       const token = localStorage.getItem('token');
       await axios.patch(
@@ -188,13 +172,11 @@ export default function ProjectPage() {
     }
   };
 
-  // --- NEW: Function to handle inviting a member ---
   const handleInvite = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setInviteMessage('');
     setIsInviting(true);
     const token = localStorage.getItem('token');
-
     try {
       await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/members`,
@@ -202,7 +184,7 @@ export default function ProjectPage() {
         { headers: { 'x-auth-token': token } }
       );
       setInviteMessage(`Successfully invited ${inviteEmail}!`);
-      setInviteEmail(''); // Clear the input field on success
+      setInviteEmail('');
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         setInviteMessage(error.response?.data.msg || 'Invitation failed.');
@@ -213,24 +195,20 @@ export default function ProjectPage() {
       setIsInviting(false);
     }
   };
-
-  // --- NEW: Function to handle assigning a task ---
+  
   const handleAssignTask = async (taskId: number, assigneeId: number | null) => {
+    setTasks(prevTasks => prevTasks.map(task =>
+      task.id === taskId ? { ...task, assignee_id: assigneeId } : task
+    ));
     try {
       const token = localStorage.getItem('token');
-      // Optimistically update the UI
-      setTasks(prevTasks => prevTasks.map(task => 
-          task.id === taskId ? { ...task, assignee_id: assigneeId } : task
-      ));
-      
       await axios.patch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}/assign`,
         { assigneeId },
         { headers: { 'x-auth-token': token } }
       );
     } catch (error) {
-        console.error('Failed to assign task', error);
-        // Optionally, revert the UI update on failure
+      console.error('Failed to assign task', error);
     }
   };
 
@@ -239,53 +217,52 @@ export default function ProjectPage() {
     { id: 'In Progress', title: 'In Progress' },
     { id: 'Done', title: 'Done' },
   ];
-  
-  if (loading) return <p className="text-center mt-10">Loading board...</p>;
+
+  if (loading) return <p className="text-center mt-10">Loading project...</p>;
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
       <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
         <div>
-            <Link href="/dashboard" className="text-indigo-600 hover:underline mb-2 inline-block">&larr; Back to Dashboard</Link>
-            <h1 className="text-3xl font-bold">Kanban Board</h1>
+          <Link href="/dashboard" className="text-indigo-600 hover:underline mb-2 inline-block">&larr; Back to Dashboard</Link>
+          <h1 className="text-3xl font-bold">Project Workspace</h1>
         </div>
-        {/* --- NEW: Invite Member Form --- */}
         <div className="mt-4 sm:mt-0 w-full sm:w-auto">
-            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row items-stretch gap-2 bg-white p-3 rounded-lg shadow-sm">
-                <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="Invite user by email"
-                    className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
-                />
-                <button
-                    type="submit"
-                    disabled={isInviting}
-                    className="px-4 py-2 font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
-                >
-                    {isInviting ? 'Sending...' : 'Invite'}
-                </button>
-            </form>
-            {inviteMessage && <p className="mt-2 text-center text-sm text-gray-600">{inviteMessage}</p>}
+          <form onSubmit={handleInvite} className="flex flex-col sm:flex-row items-stretch gap-2 bg-white p-3 rounded-lg shadow-sm">
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="Invite user by email"
+              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              required
+            />
+            <button
+              type="submit"
+              disabled={isInviting}
+              className="px-4 py-2 font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
+            >
+              {isInviting ? 'Sending...' : 'Invite'}
+            </button>
+          </form>
+          {inviteMessage && <p className="mt-2 text-center text-sm text-gray-600">{inviteMessage}</p>}
         </div>
       </header>
-      
-     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                {columnDefinitions.map(({ id, title }) => (
-                    <Column
-                        key={id}
-                        id={id}
-                        title={title}
-                        tasks={tasks.filter(task => task.status === id)}
-                        members={members}
-                        onAssign={handleAssignTask}
-                    />
-                ))}
-            </div>
-        </DndContext>
+
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+          {columnDefinitions.map(({ id, title }) => (
+            <Column
+              key={id}
+              id={id}
+              title={title}
+              tasks={tasks.filter(task => task.status === id)}
+              members={members}
+              onAssign={handleAssignTask}
+            />
+          ))}
+        </div>
+      </DndContext>
     </div>
   );
 }
