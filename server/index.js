@@ -127,7 +127,7 @@ app.post('/api/projects', auth, async (req, res) => {
 
         // 1. Insert the new project into the database
         const newProjectResult = await pool.query(
-            "INSERT INTO projects (name, description, owner_id) VALUES ($1, S$2, $3) RETURNING *",
+            "INSERT INTO projects (name, description, owner_id) VALUES ($1, $2, $3) RETURNING *",
             [name, description || null, ownerId]
         );
 
