@@ -267,14 +267,16 @@ app.post('/api/projects/:projectId/members', auth, async (req, res) => {
 // GET /api/projects/:projectId/members - Get all members of a project
 app.get('/api/projects/:projectId/members', auth, async (req, res) => {
     try {
-        const { projectId } = req.params;
-        const userId = req.user.id;
+        // --- FIX: Convert both IDs to integers ---
+        const projectId = parseInt(req.params.projectId, 10);
+        const userId = parseInt(req.user.id, 10);
 
-        // Security Check: Ensure the user requesting the list is a member of the project
+        // Security Check: This query will now work correctly
         const memberCheck = await pool.query(
             "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
             [projectId, userId]
         );
+
         if (memberCheck.rows.length === 0) {
             return res.status(403).json({ msg: 'Forbidden: You are not a member of this project.' });
         }
