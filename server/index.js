@@ -262,6 +262,91 @@ app.post('/api/projects/:projectId/members', auth, async (req, res) => {
     }
 });
 
+
+
+// GET /api/projects/:projectId/members - Get all members of a project
+app.get('/api/projects/:projectId/members', auth, async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const userId = req.user.id;
+
+        // Security Check: Ensure the user requesting the list is a member of the project
+        const memberCheck = await pool.query(
+            "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
+            [projectId, userId]
+        );
+        if (memberCheck.rows.length === 0) {
+            return res.status(403).json({ msg: 'Forbidden: You are not a member of this project.' });
+        }
+
+        // Fetch all members for the project
+        const members = await pool.query(
+            `SELECT u.id, u.username 
+             FROM users u
+             JOIN project_members pm ON u.id = pm.user_id
+             WHERE pm.project_id = $1`,
+            [projectId]
+        );
+
+        res.json(members.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+
+// PATCH /api/tasks/:taskId/assign - Assign a task to a user
+app.patch('/api/tasks/:taskId/assign', auth, async (req, res) => {
+    try {
+        const { taskId } = req.params;
+        const { assigneeId } = req.body; // This can be a user ID or null (to unassign)
+        const requesterId = req.user.id;
+
+        // Security Check 1: Verify the user making the request is a member of the project
+        const taskProjectQuery = await pool.query("SELECT project_id FROM tasks WHERE id = $1", [taskId]);
+        if (taskProjectQuery.rows.length === 0) {
+            return res.status(404).json({ msg: 'Task not found.' });
+        }
+        const projectId = taskProjectQuery.rows[0].project_id;
+
+        const memberCheck = await pool.query(
+            "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
+            [projectId, requesterId]
+        );
+        if (memberCheck.rows.length === 0) {
+            return res.status(403).json({ msg: 'Forbidden: You are not a member of this project.' });
+        }
+
+        // Security Check 2: If assigning, verify the assignee is also a member of the project
+        if (assigneeId !== null) {
+            const assigneeCheck = await pool.query(
+                "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
+                [projectId, assigneeId]
+            );
+            if (assigneeCheck.rows.length === 0) {
+                return res.status(400).json({ msg: 'Cannot assign task to a user who is not a project member.' });
+            }
+        }
+
+        // Update the task with the new assignee
+        const updatedTaskResult = await pool.query(
+            "UPDATE tasks SET assignee_id = $1 WHERE id = $2 RETURNING *",
+            [assigneeId, taskId]
+        );
+
+        const updatedTask = updatedTaskResult.rows[0];
+
+        // Broadcast the update in real-time
+        io.to(updatedTask.project_id.toString()).emit('task_updated', updatedTask);
+
+        res.json(updatedTask);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
 // Start the server
 httpServer.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

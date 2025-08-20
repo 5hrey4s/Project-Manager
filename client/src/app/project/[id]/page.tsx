@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent, ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import Link from 'next/link';
@@ -21,11 +21,18 @@ interface Task {
   title: string;
   status: TaskStatus;
   project_id: number;
+    assignee_id: number | null; // NEW: Add assignee_id
+
 }
 
+interface Member { // NEW: Type for project members
+  id: number;
+  username: string;
+}
 // --- Reusable UI Components ---
 
-function TaskCard({ task }: { task: Task }) {
+// UPDATED: TaskCard component now handles assignment
+function TaskCard({ task, members, onAssign }: { task: Task; members: Member[]; onAssign: (taskId: number, assigneeId: number | null) => void; }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   const style = {
@@ -33,42 +40,64 @@ function TaskCard({ task }: { task: Task }) {
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  
+  const assignee = members.find(m => m.id === task.assignee_id);
+  
+  const handleAssignmentChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const newAssigneeId = e.target.value === 'unassigned' ? null : parseInt(e.target.value, 10);
+    onAssign(task.id, newAssigneeId);
+  };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className="bg-white p-3 mb-3 rounded-md shadow touch-none"
-    >
-      {task.title}
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="bg-white p-4 mb-3 rounded-lg shadow touch-none border-l-4 border-transparent hover:border-indigo-500">
+      <p className="font-medium text-gray-800">{task.title}</p>
+      <div className="mt-3 flex justify-between items-center">
+        <div className="flex items-center">
+            <select
+              value={task.assignee_id ?? 'unassigned'}
+              onChange={handleAssignmentChange}
+              onClick={(e) => e.stopPropagation()} // Prevents drag from starting on click
+              className="text-xs p-1 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none"
+            >
+              <option value="unassigned">Unassigned</option>
+              {members.map(member => (
+                <option key={member.id} value={member.id}>
+                  {member.username}
+                </option>
+              ))}
+            </select>
+        </div>
+        {assignee && (
+          <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold" title={assignee.username}>
+            {assignee.username.charAt(0).toUpperCase()}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function Column({ id, title, tasks }: { id: TaskStatus, title: string, tasks: Task[] }) {
-  const { setNodeRef } = useDroppable({ id });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className="bg-gray-200 p-4 rounded-lg shadow-inner w-full"
-    >
-      <h2 className="font-bold mb-4 text-lg text-gray-800">{title}</h2>
-      <SortableContext id={id} items={tasks}>
-        {tasks.map(task => (
-          <TaskCard key={task.id} task={task} />
-        ))}
-      </SortableContext>
-    </div>
-  );
+// Column Component (no changes)
+function Column({ id, title, tasks, members, onAssign }: { id: TaskStatus; title: string; tasks: Task[]; members: Member[]; onAssign: (taskId: number, assigneeId: number | null) => void; }) {
+    const { setNodeRef } = useDroppable({ id });
+    return (
+        <div ref={setNodeRef} className="bg-gray-200 p-4 rounded-lg shadow-inner w-full">
+            <h2 className="font-bold mb-4 text-lg text-gray-800">{title}</h2>
+            <SortableContext id={id} items={tasks}>
+                {tasks.map(task => (
+                    <TaskCard key={task.id} task={task} members={members} onAssign={onAssign} />
+                ))}
+            </SortableContext>
+        </div>
+    );
 }
 
 
 // --- Main Page Component ---
 export default function ProjectPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [members, setMembers] = useState<Member[]>([]); // NEW: State for members
+
   const [loading, setLoading] = useState(true);
   
   // --- NEW: State for Invite Form ---
@@ -185,6 +214,26 @@ export default function ProjectPage() {
     }
   };
 
+  // --- NEW: Function to handle assigning a task ---
+  const handleAssignTask = async (taskId: number, assigneeId: number | null) => {
+    try {
+      const token = localStorage.getItem('token');
+      // Optimistically update the UI
+      setTasks(prevTasks => prevTasks.map(task => 
+          task.id === taskId ? { ...task, assignee_id: assigneeId } : task
+      ));
+      
+      await axios.patch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}/assign`,
+        { assigneeId },
+        { headers: { 'x-auth-token': token } }
+      );
+    } catch (error) {
+        console.error('Failed to assign task', error);
+        // Optionally, revert the UI update on failure
+    }
+  };
+
   const columnDefinitions: { id: TaskStatus, title: string }[] = [
     { id: 'To Do', title: 'To Do' },
     { id: 'In Progress', title: 'In Progress' },
@@ -223,18 +272,20 @@ export default function ProjectPage() {
         </div>
       </header>
       
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          {columnDefinitions.map(({ id, title }) => (
-            <Column
-              key={id}
-              id={id}
-              title={title}
-              tasks={tasks.filter(task => task.status === id)}
-            />
-          ))}
-        </div>
-      </DndContext>
+     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                {columnDefinitions.map(({ id, title }) => (
+                    <Column
+                        key={id}
+                        id={id}
+                        title={title}
+                        tasks={tasks.filter(task => task.status === id)}
+                        members={members}
+                        onAssign={handleAssignTask}
+                    />
+                ))}
+            </div>
+        </DndContext>
     </div>
   );
 }
