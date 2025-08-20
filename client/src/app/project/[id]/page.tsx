@@ -15,6 +15,12 @@ import { useDroppable } from '@dnd-kit/core';
 // --- Define Types ---
 type TaskStatus = 'To Do' | 'In Progress' | 'Done';
 
+interface Project { // NEW: Type for the project itself
+  id: number;
+  name: string;
+  description: string | null;
+}
+
 interface Task {
   id: number;
   title: string;
@@ -92,6 +98,7 @@ function Column({ id, title, tasks, members, onAssign }: { id: TaskStatus; title
 // --- Main Page Component ---
 export default function ProjectPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+    const [project, setProject] = useState<Project | null>(null); // NEW: State for project details
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -113,21 +120,25 @@ export default function ProjectPage() {
     }
     const axiosConfig = { headers: { 'x-auth-token': token } };
 
+ // UPDATED: fetchData now also gets the project details
     const fetchData = async () => {
       try {
-        const [tasksResponse, membersResponse] = await Promise.all([
+        const [projectResponse, tasksResponse, membersResponse] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}`, axiosConfig),
           axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/tasks`, axiosConfig),
           axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/members`, axiosConfig)
         ]);
+        setProject(projectResponse.data);
         setTasks(tasksResponse.data);
         setMembers(membersResponse.data);
       } catch (error) {
         console.error('Failed to fetch project data', error);
-        router.push('/dashboard'); // Redirect if user doesn't have access
+        router.push('/dashboard'); 
       } finally {
         setLoading(false);
       }
     };
+
 
     fetchData();
 
@@ -225,7 +236,7 @@ export default function ProjectPage() {
       <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
         <div>
           <Link href="/dashboard" className="text-indigo-600 hover:underline mb-2 inline-block">&larr; Back to Dashboard</Link>
-          <h1 className="text-3xl font-bold">Project Workspace</h1>
+          <h1 className="text-3xl font-bold">{project ? project.name : 'Project Workspace'}</h1>
         </div>
         <div className="mt-4 sm:mt-0 w-full sm:w-auto">
           <form onSubmit={handleInvite} className="flex flex-col sm:flex-row items-stretch gap-2 bg-white p-3 rounded-lg shadow-sm">

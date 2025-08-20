@@ -349,6 +349,37 @@ app.patch('/api/tasks/:taskId/assign', auth, async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
+
+// server/index.js
+
+// GET /api/projects/:projectId - Get details for a single project
+app.get('/api/projects/:projectId', auth, async (req, res) => {
+    try {
+        const projectId = parseInt(req.params.projectId, 10);
+        const userId = parseInt(req.user.id, 10);
+
+        // Security Check: User must be a member of the project to view it
+        const memberCheck = await pool.query(
+            "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
+            [projectId, userId]
+        );
+        if (memberCheck.rows.length === 0) {
+            return res.status(403).json({ msg: 'Forbidden: You are not a member of this project.' });
+        }
+
+        // Fetch the project details
+        const projectResult = await pool.query("SELECT * FROM projects WHERE id = $1", [projectId]);
+        if (projectResult.rows.length === 0) {
+            return res.status(404).json({ msg: 'Project not found.' });
+        }
+
+        res.json(projectResult.rows[0]);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
 // Start the server
 httpServer.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
