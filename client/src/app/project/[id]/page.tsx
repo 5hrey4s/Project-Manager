@@ -11,16 +11,11 @@ import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '
 import { SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-// --- Initialize the Google AI Client ---
-// This should be after your require statements
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // --- Define Types ---
 type TaskStatus = 'To Do' | 'In Progress' | 'Done';
 
-interface Project { // NEW: Type for the project itself
+interface Project {
   id: number;
   name: string;
   description: string | null;
@@ -65,7 +60,7 @@ function TaskCard({ task, members, onAssign }: { task: Task; members: Member[]; 
           <select
             value={task.assignee_id ?? 'unassigned'}
             onChange={handleAssignmentChange}
-            onClick={(e) => e.stopPropagation()} // Prevents drag from starting on click
+            onClick={(e) => e.stopPropagation()} // Prevents drag from starting on select click
             className="text-xs p-1 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none"
           >
             <option value="unassigned">Unassigned</option>
@@ -91,7 +86,7 @@ function Column({ id, title, tasks, members, onAssign }: { id: TaskStatus; title
   return (
     <div ref={setNodeRef} className="bg-gray-200 p-4 rounded-lg shadow-inner w-full">
       <h2 className="font-bold mb-4 text-lg text-gray-800">{title}</h2>
-      <SortableContext id={id} items={tasks}>
+      <SortableContext id={id} items={tasks.map(t => t.id)}>
         {tasks.map(task => (
           <TaskCard key={task.id} task={task} members={members} onAssign={onAssign} />
         ))}
@@ -102,13 +97,20 @@ function Column({ id, title, tasks, members, onAssign }: { id: TaskStatus; title
 
 // --- Main Page Component ---
 export default function ProjectPage() {
+  const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-    const [project, setProject] = useState<Project | null>(null); // NEW: State for project details
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteMessage, setInviteMessage] = useState('');
   const [isInviting, setIsInviting] = useState(false);
+  
+  // AI Modal State
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiGoal, setAiGoal] = useState('');
+  const [suggestedTasks, setSuggestedTasks] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   const router = useRouter();
   const params = useParams();
@@ -125,7 +127,6 @@ export default function ProjectPage() {
     }
     const axiosConfig = { headers: { 'x-auth-token': token } };
 
- // UPDATED: fetchData now also gets the project details
     const fetchData = async () => {
       try {
         const [projectResponse, tasksResponse, membersResponse] = await Promise.all([
@@ -138,12 +139,11 @@ export default function ProjectPage() {
         setMembers(membersResponse.data);
       } catch (error) {
         console.error('Failed to fetch project data', error);
-        router.push('/dashboard'); 
+        router.push('/dashboard');
       } finally {
         setLoading(false);
       }
     };
-
 
     fetchData();
 
@@ -228,6 +228,42 @@ export default function ProjectPage() {
     }
   };
 
+  const handleGenerateTasks = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsGenerating(true);
+    setSuggestedTasks([]);
+    setAiError('');
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/ai/generate-tasks`,
+        { goal: aiGoal, projectId },
+        { headers: { 'x-auth-token': token } }
+      );
+      setSuggestedTasks(response.data.suggestedTasks);
+    } catch (error) {
+      console.error(error);
+      setAiError('Failed to generate tasks. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleAddTask = async (taskTitle: string) => {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await axios.post(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/tasks`,
+            { title: taskTitle, projectId: parseInt(projectId, 10) },
+            { headers: { 'x-auth-token': token } }
+        );
+        setTasks(prevTasks => [...prevTasks, response.data]);
+        setSuggestedTasks(prev => prev.filter(t => t !== taskTitle));
+    } catch (error) {
+        console.error("Failed to add task", error);
+    }
+  };
+
   const columnDefinitions: { id: TaskStatus, title: string }[] = [
     { id: 'To Do', title: 'To Do' },
     { id: 'In Progress', title: 'In Progress' },
@@ -243,25 +279,33 @@ export default function ProjectPage() {
           <Link href="/dashboard" className="text-indigo-600 hover:underline mb-2 inline-block">&larr; Back to Dashboard</Link>
           <h1 className="text-3xl font-bold">{project ? project.name : 'Project Workspace'}</h1>
         </div>
-        <div className="mt-4 sm:mt-0 w-full sm:w-auto">
-          <form onSubmit={handleInvite} className="flex flex-col sm:flex-row items-stretch gap-2 bg-white p-3 rounded-lg shadow-sm">
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="Invite user by email"
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
-            />
-            <button
-              type="submit"
-              disabled={isInviting}
-              className="px-4 py-2 font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
-            >
-              {isInviting ? 'Sending...' : 'Invite'}
-            </button>
-          </form>
-          {inviteMessage && <p className="mt-2 text-center text-sm text-gray-600">{inviteMessage}</p>}
+        <div className="flex items-center gap-4 mt-4 sm:mt-0">
+          <button
+            onClick={() => setIsAiModalOpen(true)}
+            className="px-4 py-2 font-bold text-white bg-purple-600 rounded-md hover:bg-purple-700 flex items-center gap-2"
+          >
+            ✨ Generate with AI
+          </button>
+          <div>
+            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row items-stretch gap-2 bg-white p-3 rounded-lg shadow-sm">
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="Invite user by email"
+                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+              <button
+                type="submit"
+                disabled={isInviting}
+                className="px-4 py-2 font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
+              >
+                {isInviting ? 'Sending...' : 'Invite'}
+              </button>
+            </form>
+            {inviteMessage && <p className="mt-2 text-center text-sm text-gray-600">{inviteMessage}</p>}
+          </div>
         </div>
       </header>
 
@@ -279,6 +323,42 @@ export default function ProjectPage() {
           ))}
         </div>
       </DndContext>
+      
+      {isAiModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
+            <h2 className="text-xl font-bold mb-4">AI Task Generator</h2>
+            <form onSubmit={handleGenerateTasks}>
+              <textarea
+                value={aiGoal}
+                onChange={(e) => setAiGoal(e.target.value)}
+                placeholder="Enter a high-level goal... e.g., 'Launch a new marketing website'"
+                className="w-full p-2 border border-gray-300 rounded-md h-24"
+                required
+              />
+              <div className="flex justify-end gap-4 mt-4">
+                <button type="button" onClick={() => { setIsAiModalOpen(false); setSuggestedTasks([]); setAiError(''); }} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
+                <button type="submit" disabled={isGenerating} className="px-4 py-2 bg-purple-600 text-white rounded-md disabled:bg-purple-400">
+                  {isGenerating ? 'Generating...' : 'Generate Tasks'}
+                </button>
+              </div>
+            </form>
+            
+            <div className="mt-6">
+              {suggestedTasks.length > 0 && <h3 className="font-bold mb-2">Suggested Tasks:</h3>}
+              <ul className="space-y-2 max-h-60 overflow-y-auto">
+                {suggestedTasks.map((task, index) => (
+                  <li key={index} className="flex justify-between items-center bg-gray-100 p-2 rounded-md">
+                    <span>{task}</span>
+                    <button onClick={() => handleAddTask(task)} className="px-3 py-1 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700">+</button>
+                  </li>
+                ))}
+              </ul>
+              {aiError && <p className="text-red-500 mt-4">{aiError}</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
