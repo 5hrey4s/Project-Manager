@@ -40,7 +40,7 @@ export default function CopilotChat({ projectId, onClose }: CopilotChatProps) {
       setMessages(prev => [...prev, aiMessage]);
 
     } catch (error) {
-      const errorMessage: Message = { sender: 'ai', text: "Sorry, I couldn't process that. Please try again." };
+      const errorMessage: Message = { sender: 'ai', text: `${error}` };
       setMessages(prev => [...prev, errorMessage]);
       console.error("Copilot request failed", error);
     } finally {
