@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const projectController = require('../controllers/projectController');
 const authMiddleware = require('../middleware/auth');
+const taskController = require('../controllers/taskController');
+
 
 // All routes in this file are protected and require a token
 router.use(authMiddleware);
