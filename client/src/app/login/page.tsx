@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import axios, { isAxiosError } from 'axios';
 import Link from 'next/link';
 import { useAuth } from '../../../context/AuthContext';
@@ -12,9 +11,9 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth(); // <-- Get the login function from context
-    const router = useRouter();
 
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => { // Correct type        e.preventDefault();
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => { // Correct type       
+ e.preventDefault();
         setError('');
         setIsLoading(true);
 
@@ -97,12 +96,12 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => { // Correct
                     </div>
                 </form>
 
-                <p className="text-sm text-center text-gray-600">
-                    Don't have an account?{' '}
-                    <Link href="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
-                        Sign up
-                    </Link>
-                </p>
+              <p className="text-sm text-center text-gray-600">
+    Don&apos;t have an account?{' '} s
+    <Link href="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+        Sign up
+    </Link>
+</p>
             </div>
         </div>
     );
