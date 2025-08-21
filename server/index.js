@@ -380,6 +380,49 @@ app.get('/api/projects/:projectId', auth, async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
+
+// POST /api/ai/generate-tasks - Generate tasks for a project goal
+app.post('/api/ai/generate-tasks', auth, async (req, res) => {
+    try {
+        const { goal, projectId } = req.body;
+        const userId = parseInt(req.user.id, 10);
+
+        if (!goal || !projectId) {
+            return res.status(400).json({ msg: 'A project goal and projectId are required.' });
+        }
+
+        // Security Check: Verify the user is a member of the project
+        const memberCheck = await pool.query(
+            "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
+            [projectId, userId]
+        );
+        if (memberCheck.rows.length === 0) {
+            return res.status(403).json({ msg: 'Forbidden: You are not a member of this project.' });
+        }
+
+        // --- AI Logic Starts Here ---
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+        const prompt = `As an expert project manager, break down the following high-level goal into a concise list of actionable tasks for a Kanban board. The goal is: "${goal}".
+        
+        Return your response ONLY as a valid JSON array of strings, with no other text or explanation. For example: ["Task 1", "Task 2", "Task 3"]`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        // The AI's response is a string of a JSON array, so we need to parse it
+        const tasks = JSON.parse(text);
+
+        res.json({ suggestedTasks: tasks });
+        // --- AI Logic Ends Here ---
+
+    } catch (error) {
+        console.error("Error generating AI tasks:", error);
+        res.status(500).json({ msg: 'Failed to generate tasks from AI.' });
+    }
+});
+
 // Start the server
 httpServer.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

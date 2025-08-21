@@ -11,6 +11,11 @@ import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '
 import { SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// --- Initialize the Google AI Client ---
+// This should be after your require statements
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // --- Define Types ---
 type TaskStatus = 'To Do' | 'In Progress' | 'Done';
