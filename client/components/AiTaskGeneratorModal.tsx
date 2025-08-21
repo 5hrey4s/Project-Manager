@@ -1,101 +1,153 @@
-'use client';
+"use client"
 
-import { useState, FormEvent } from 'react';
-import { createTask, generateAiTasks } from '../services/api';
+import type React from "react"
 
-// --- FIX: Define the Task type for type safety ---
+import { useState, type FormEvent } from "react"
+import { X, Sparkles, Plus, Loader2 } from "lucide-react"
+import { createTask, generateAiTasks } from "../services/api"
+import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge" // Ensure Badge is imported from the correct UI component path
+
 interface Task {
-  id: number;
-  title: string;
-  status: 'To Do' | 'In Progress' | 'Done';
-  assignee_id: number | null;
-  project_id: number;
+  id: number
+  title: string
+  status: "To Do" | "In Progress" | "Done"
+  assignee_id: number | null
+  project_id: number
 }
 
 interface AiTaskGeneratorModalProps {
-  projectId: string;
-  onClose: () => void;
-  // --- FIX: Replace 'any[]' with the specific 'Task[]' type ---
-  setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
+  projectId: string
+  onClose: () => void
+  setTasks: React.Dispatch<React.SetStateAction<Task[]>>
 }
 
 export default function AiTaskGeneratorModal({ projectId, onClose, setTasks }: AiTaskGeneratorModalProps) {
-  const [aiGoal, setAiGoal] = useState('');
-  const [suggestedTasks, setSuggestedTasks] = useState<string[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [aiError, setAiError] = useState('');
+  const [aiGoal, setAiGoal] = useState("")
+  const [suggestedTasks, setSuggestedTasks] = useState<string[]>([])
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [aiError, setAiError] = useState("")
 
   const handleGenerateTasks = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsGenerating(true);
-    setSuggestedTasks([]);
-    setAiError('');
+    e.preventDefault()
+    setIsGenerating(true)
+    setSuggestedTasks([])
+    setAiError("")
     try {
-      const response = await generateAiTasks(projectId, aiGoal);
-      setSuggestedTasks(response.data.suggestedTasks);
+      const response = await generateAiTasks(projectId, aiGoal)
+      setSuggestedTasks(response.data.suggestedTasks)
     } catch (error) {
-      console.error(error);
-      setAiError('Failed to generate tasks. Please try again.');
+      console.error(error)
+      setAiError("Failed to generate tasks. Please try again.")
     } finally {
-      setIsGenerating(false);
+      setIsGenerating(false)
     }
-  };
+  }
 
   const handleAddTask = async (taskTitle: string) => {
     try {
-      const response = await createTask(projectId, taskTitle);
-      setTasks(prevTasks => [...prevTasks, response.data]);
-      setSuggestedTasks(prev => prev.filter(t => t !== taskTitle));
+      const response = await createTask(projectId, taskTitle)
+      setTasks((prevTasks) => [...prevTasks, response.data])
+      setSuggestedTasks((prev) => prev.filter((t) => t !== taskTitle))
     } catch (error) {
-      console.error("Failed to add task", error);
+      console.error("Failed to add task", error)
     }
-  };
-  
+  }
+
   const handleClose = () => {
-    setSuggestedTasks([]);
-    setAiError('');
-    onClose();
-  };
+    setSuggestedTasks([])
+    setAiError("")
+    onClose()
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
-        <h2 className="text-xl font-bold mb-4">AI Task Generator</h2>
-        <form onSubmit={handleGenerateTasks}>
-          <textarea
-            value={aiGoal}
-            onChange={(e) => setAiGoal(e.target.value)}
-            placeholder="Enter a high-level goal..."
-            className="w-full p-2 border border-gray-300 rounded-md h-24"
-            required
-          />
-          <div className="flex justify-end gap-4 mt-4">
-            <button type="button" onClick={handleClose} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
-            <button type="submit" disabled={isGenerating} className="px-4 py-2 bg-purple-600 text-white rounded-md disabled:bg-purple-400">
-              {isGenerating ? 'Generating...' : 'Generate Tasks'}
-            </button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
+        <CardHeader className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              AI Task Generator
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={handleClose} className="text-white hover:bg-white/20">
+              <X className="w-4 h-4" />
+            </Button>
           </div>
-        </form>
-        
-        <div className="mt-6">
-          {suggestedTasks.length > 0 && <h3 className="font-bold mb-2">Suggested Tasks:</h3>}
-          <ul className="space-y-2 max-h-60 overflow-y-auto">
-            {suggestedTasks.map((task, index) => (
-              <li key={index} className="flex justify-between items-center bg-gray-100 p-2 rounded-md">
-                <span>{task}</span>
-                <button 
-                  onClick={() => handleAddTask(task)} 
-                  className="px-3 py-1 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                  title="Add this task to the board"
-                >
-                  + Add
-                </button>
-              </li>
-            ))}
-          </ul>
-          {aiError && <p className="text-red-500 mt-4">{aiError}</p>}
-        </div>
-      </div>
+        </CardHeader>
+
+        <CardContent className="p-6 space-y-6">
+          <form onSubmit={handleGenerateTasks} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Describe your project goal or feature</label>
+              <Textarea
+                value={aiGoal}
+                onChange={(e) => setAiGoal(e.target.value)}
+                placeholder="e.g., Build a user authentication system with login, registration, and password reset functionality..."
+                className="min-h-[100px] resize-none"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isGenerating}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Tasks
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+
+          {suggestedTasks.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-foreground">Suggested Tasks</h3>
+                <Badge variant="secondary">{suggestedTasks.length}</Badge>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {suggestedTasks.map((task, index) => (
+                  <Card key={index} className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm text-foreground flex-1 leading-relaxed">{task}</p>
+                        <Button onClick={() => handleAddTask(task)} size="sm" className="shrink-0">
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {aiError && (
+            <Card className="border-destructive bg-destructive/5">
+              <CardContent className="p-4">
+                <p className="text-sm text-destructive">{aiError}</p>
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
