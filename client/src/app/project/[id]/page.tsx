@@ -160,16 +160,25 @@ export default function ProjectPage() {
     };
   }, [projectId, router]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 10 } }));
-
-  const handleDragEnd = (event: DragEndEvent) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      // Require the mouse to move 10 pixels before activating a drag
+      activationConstraint: {
+        distance: 10,
+      },
+    })
+  );
+   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over) return;
-    const activeTaskId = active.id;
-    const destinationColumnId = over.id as TaskStatus;
-    const draggedTask = tasks.find(task => task.id === activeTaskId);
-    if (draggedTask && draggedTask.status !== destinationColumnId) {
-      handleStatusChange(activeTaskId as number, destinationColumnId);
+
+    // If the item is dropped over a different column
+    if (over && active.id !== over.id) {
+        const activeTask = tasks.find(t => t.id === active.id);
+        const destinationColumn = over.id as TaskStatus;
+
+        if (activeTask && activeTask.status !== destinationColumn) {
+            handleStatusChange(activeTask.id, destinationColumn);
+        }
     }
   };
 
