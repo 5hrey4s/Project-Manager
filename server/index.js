@@ -416,9 +416,11 @@ app.post('/api/ai/generate-tasks', auth, async (req, res) => {
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
+        // This removes the Markdown backticks and the "json" identifier
+        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
         // The AI's response is a string of a JSON array, so we need to parse it
-        const tasks = JSON.parse(text);
+        const tasks = JSON.parse(cleanedText);
 
         res.json({ suggestedTasks: tasks });
         // --- AI Logic Ends Here ---
