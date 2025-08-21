@@ -12,6 +12,12 @@ const auth = require('./middleware/auth');
 
 const app = express();
 const httpServer = createServer(app);
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// --- Initialize the Google AI Client ---
+// This should be after your require statements
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 const PORT = process.env.PORT || 5000; // Use port from environment or default to 5000
 
 // --- CORRECTED CORS AND SOCKET.IO CONFIG ---
