@@ -11,6 +11,7 @@ import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '
 import { SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
+import CopilotChat from '../../../../components/CopilotChat';
 
 // --- Define Types ---
 type TaskStatus = 'To Do' | 'In Progress' | 'Done';
@@ -38,13 +39,11 @@ interface Member {
 
 function TaskCard({ task, members, onAssign }: { task: Task; members: Member[]; onAssign: (taskId: number, assigneeId: number | null) => void; }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
-
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-
   const assignee = members.find(m => m.id === task.assignee_id);
 
   const handleAssignmentChange = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -60,7 +59,7 @@ function TaskCard({ task, members, onAssign }: { task: Task; members: Member[]; 
           <select
             value={task.assignee_id ?? 'unassigned'}
             onChange={handleAssignmentChange}
-            onClick={(e) => e.stopPropagation()} // Prevents drag from starting on select click
+            onClick={(e) => e.stopPropagation()}
             className="text-xs p-1 border border-gray-300 rounded-md bg-gray-50 hover:bg-gray-100 focus:outline-none"
           >
             <option value="unassigned">Unassigned</option>
@@ -112,13 +111,15 @@ export default function ProjectPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiError, setAiError] = useState('');
 
+  // AI Copilot State
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
 
   useEffect(() => {
     if (!projectId) return;
-
     const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL!);
     const token = localStorage.getItem('token');
     if (!token) {
@@ -173,19 +174,11 @@ export default function ProjectPage() {
   };
 
   const handleStatusChange = async (taskId: number, newStatus: TaskStatus) => {
-    setTasks(prevTasks => prevTasks.map(task =>
-      task.id === taskId ? { ...task, status: newStatus } : task
-    ));
+    setTasks(prevTasks => prevTasks.map(task => task.id === taskId ? { ...task, status: newStatus } : task));
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}/status`,
-        { status: newStatus },
-        { headers: { 'x-auth-token': token } }
-      );
-    } catch (error) {
-      console.error('Failed to update task status:', error);
-    }
+      await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}/status`, { status: newStatus }, { headers: { 'x-auth-token': token } });
+    } catch (error) { console.error('Failed to update task status:', error); }
   };
 
   const handleInvite = async (e: FormEvent<HTMLFormElement>) => {
@@ -194,11 +187,7 @@ export default function ProjectPage() {
     setIsInviting(true);
     const token = localStorage.getItem('token');
     try {
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/members`,
-        { email: inviteEmail },
-        { headers: { 'x-auth-token': token } }
-      );
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/members`, { email: inviteEmail }, { headers: { 'x-auth-token': token } });
       setInviteMessage(`Successfully invited ${inviteEmail}!`);
       setInviteEmail('');
     } catch (error: unknown) {
@@ -213,19 +202,11 @@ export default function ProjectPage() {
   };
   
   const handleAssignTask = async (taskId: number, assigneeId: number | null) => {
-    setTasks(prevTasks => prevTasks.map(task =>
-      task.id === taskId ? { ...task, assignee_id: assigneeId } : task
-    ));
+    setTasks(prevTasks => prevTasks.map(task => task.id === taskId ? { ...task, assignee_id: assigneeId } : task));
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}/assign`,
-        { assigneeId },
-        { headers: { 'x-auth-token': token } }
-      );
-    } catch (error) {
-      console.error('Failed to assign task', error);
-    }
+      await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}/assign`, { assigneeId }, { headers: { 'x-auth-token': token } });
+    } catch (error) { console.error('Failed to assign task', error); }
   };
 
   const handleGenerateTasks = async (e: FormEvent<HTMLFormElement>) => {
@@ -235,11 +216,7 @@ export default function ProjectPage() {
     setAiError('');
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/ai/generate-tasks`,
-        { goal: aiGoal, projectId },
-        { headers: { 'x-auth-token': token } }
-      );
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/generate-tasks`, { goal: aiGoal, projectId }, { headers: { 'x-auth-token': token } });
       setSuggestedTasks(response.data.suggestedTasks);
     } catch (error) {
       console.error(error);
@@ -251,24 +228,14 @@ export default function ProjectPage() {
 
   const handleAddTask = async (taskTitle: string) => {
     try {
-        const token = localStorage.getItem('token');
-        const response = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/tasks`,
-            { title: taskTitle, projectId: parseInt(projectId, 10) },
-            { headers: { 'x-auth-token': token } }
-        );
-        setTasks(prevTasks => [...prevTasks, response.data]);
-        setSuggestedTasks(prev => prev.filter(t => t !== taskTitle));
-    } catch (error) {
-        console.error("Failed to add task", error);
-    }
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks`, { title: taskTitle, projectId: parseInt(projectId, 10) }, { headers: { 'x-auth-token': token } });
+      setTasks(prevTasks => [...prevTasks, response.data]);
+      setSuggestedTasks(prev => prev.filter(t => t !== taskTitle));
+    } catch (error) { console.error("Failed to add task", error); }
   };
 
-  const columnDefinitions: { id: TaskStatus, title: string }[] = [
-    { id: 'To Do', title: 'To Do' },
-    { id: 'In Progress', title: 'In Progress' },
-    { id: 'Done', title: 'Done' },
-  ];
+  const columnDefinitions: { id: TaskStatus, title: string }[] = [{ id: 'To Do', title: 'To Do' }, { id: 'In Progress', title: 'In Progress' }, { id: 'Done', title: 'Done' }];
 
   if (loading) return <p className="text-center mt-10">Loading project...</p>;
 
@@ -280,27 +247,13 @@ export default function ProjectPage() {
           <h1 className="text-3xl font-bold">{project ? project.name : 'Project Workspace'}</h1>
         </div>
         <div className="flex items-center gap-4 mt-4 sm:mt-0">
-          <button
-            onClick={() => setIsAiModalOpen(true)}
-            className="px-4 py-2 font-bold text-white bg-purple-600 rounded-md hover:bg-purple-700 flex items-center gap-2"
-          >
+          <button onClick={() => setIsAiModalOpen(true)} className="px-4 py-2 font-bold text-white bg-purple-600 rounded-md hover:bg-purple-700 flex items-center gap-2">
             ✨ Generate with AI
           </button>
           <div>
             <form onSubmit={handleInvite} className="flex flex-col sm:flex-row items-stretch gap-2 bg-white p-3 rounded-lg shadow-sm">
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="Invite user by email"
-                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                required
-              />
-              <button
-                type="submit"
-                disabled={isInviting}
-                className="px-4 py-2 font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
-              >
+              <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="Invite user by email" className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+              <button type="submit" disabled={isInviting} className="px-4 py-2 font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400">
                 {isInviting ? 'Sending...' : 'Invite'}
               </button>
             </form>
@@ -312,14 +265,7 @@ export default function ProjectPage() {
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {columnDefinitions.map(({ id, title }) => (
-            <Column
-              key={id}
-              id={id}
-              title={title}
-              tasks={tasks.filter(task => task.status === id)}
-              members={members}
-              onAssign={handleAssignTask}
-            />
+            <Column key={id} id={id} title={title} tasks={tasks.filter(task => task.status === id)} members={members} onAssign={handleAssignTask} />
           ))}
         </div>
       </DndContext>
@@ -329,21 +275,12 @@ export default function ProjectPage() {
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
             <h2 className="text-xl font-bold mb-4">AI Task Generator</h2>
             <form onSubmit={handleGenerateTasks}>
-              <textarea
-                value={aiGoal}
-                onChange={(e) => setAiGoal(e.target.value)}
-                placeholder="Enter a high-level goal... e.g., 'Launch a new marketing website'"
-                className="w-full p-2 border border-gray-300 rounded-md h-24"
-                required
-              />
+              <textarea value={aiGoal} onChange={(e) => setAiGoal(e.target.value)} placeholder="Enter a high-level goal..." className="w-full p-2 border border-gray-300 rounded-md h-24" required />
               <div className="flex justify-end gap-4 mt-4">
                 <button type="button" onClick={() => { setIsAiModalOpen(false); setSuggestedTasks([]); setAiError(''); }} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
-                <button type="submit" disabled={isGenerating} className="px-4 py-2 bg-purple-600 text-white rounded-md disabled:bg-purple-400">
-                  {isGenerating ? 'Generating...' : 'Generate Tasks'}
-                </button>
+                <button type="submit" disabled={isGenerating} className="px-4 py-2 bg-purple-600 text-white rounded-md disabled:bg-purple-400">{isGenerating ? 'Generating...' : 'Generate Tasks'}</button>
               </div>
             </form>
-            
             <div className="mt-6">
               {suggestedTasks.length > 0 && <h3 className="font-bold mb-2">Suggested Tasks:</h3>}
               <ul className="space-y-2 max-h-60 overflow-y-auto">
@@ -358,6 +295,16 @@ export default function ProjectPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {!isCopilotOpen && (
+        <button onClick={() => setIsCopilotOpen(true)} className="fixed bottom-6 right-6 bg-indigo-600 text-white p-4 rounded-full shadow-lg hover:bg-indigo-700 transition-transform hover:scale-110" title="Open AI Copilot">
+          🤖
+        </button>
+      )}
+
+      {isCopilotOpen && projectId && (
+        <CopilotChat projectId={projectId} onClose={() => setIsCopilotOpen(false)} />
       )}
     </div>
   );
