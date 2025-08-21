@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useSortable } from "@dnd-kit/sortable"
+import { useDraggable } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
 
 // Define the types needed for this component
@@ -26,11 +26,16 @@ interface TaskCardProps {
 }
 
 export default function TaskCard({ task, members, onAssign }: TaskCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    data: {
+      type: "task",
+      task,
+    },
+  })
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Translate.toString(transform),
   }
 
   const assignee = members.find((m) => m.id === task.assignee_id)
@@ -64,6 +69,7 @@ export default function TaskCard({ task, members, onAssign }: TaskCardProps) {
               <SelectTrigger
                 className="w-auto h-8 text-xs border-0 bg-muted/50 hover:bg-muted focus:ring-1"
                 onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
