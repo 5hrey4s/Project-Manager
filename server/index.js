@@ -407,7 +407,7 @@ app.post('/api/ai/generate-tasks', auth, async (req, res) => {
         }
 
         // --- AI Logic Starts Here ---
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
 
         const prompt = `As an expert project manager, break down the following high-level goal into a concise list of actionable tasks for a Kanban board. The goal is: "${goal}".
         
