@@ -13,6 +13,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  login: (token: string) => Promise<void>; // <-- ADD THIS
   logout: () => void;
 }
 
@@ -23,25 +24,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
+    const fetchUser = async (token: string) => {
+        try {
+            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/users/user`, {
+                headers: { 'x-auth-token': token },
+            });
+            setUser(res.data);
+        } catch (error) {
+            console.error('Failed to fetch user', error);
+            localStorage.removeItem('token');
+            setUser(null);
+        }
+    };
+
     useEffect(() => {
-        const fetchUser = async () => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                try {
-                    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/users/user`, {
-                        headers: { 'x-auth-token': token },
-                    });
-                    setUser(res.data);
-                } catch (error) {
-                    console.error('Failed to fetch user', error);
-                    localStorage.removeItem('token');
-                    router.push('/login');
-                }
-            }
-            setLoading(false);
-        };
-        fetchUser();
-    }, [router]);
+        const token = localStorage.getItem('token');
+        if (token) {
+            fetchUser(token);
+        }
+        setLoading(false);
+    }, []);
+
+    // --- NEW: Login function to update context ---
+    const login = async (token: string) => {
+        localStorage.setItem('token', token);
+        await fetchUser(token); // Fetch user immediately
+        router.push('/dashboard');
+    };
 
     const logout = () => {
         localStorage.removeItem('token');
@@ -50,8 +59,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, logout }}>
-            {children}
+        <AuthContext.Provider value={{ user, loading, login, logout }}>
+            {!loading && children}
         </AuthContext.Provider>
     );
 };
