@@ -38,7 +38,7 @@ export default function Dashboard() {
       try {
         // Fetch user and projects in parallel for efficiency
         const [userResponse, projectsResponse] = await Promise.all([
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/user`, axiosConfig),
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/users/user`, axiosConfig),
           axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`, axiosConfig),
         ]);
         setUser(userResponse.data);
