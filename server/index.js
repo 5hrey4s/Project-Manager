@@ -431,6 +431,71 @@ app.post('/api/ai/generate-tasks', auth, async (req, res) => {
     }
 });
 
+// POST /api/ai/copilot - The main endpoint for the AI Project Copilot
+app.post('/api/ai/copilot', auth, async (req, res) => {
+    try {
+        const { projectId, message } = req.body;
+        const userId = parseInt(req.user.id, 10);
+
+        if (!projectId || !message) {
+            return res.status(400).json({ msg: 'Project ID and a message are required.' });
+        }
+
+        // 1. Security Check: Verify the user is a member of the project
+        const memberCheck = await pool.query(
+            "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
+            [projectId, userId]
+        );
+        if (memberCheck.rows.length === 0) {
+            return res.status(403).json({ msg: 'Forbidden: You are not a member of this project.' });
+        }
+
+        // 2. Fetch Context: Get all tasks and members for this project
+        const tasksResult = await pool.query("SELECT * FROM tasks WHERE project_id = $1", [projectId]);
+        const membersResult = await pool.query(
+            `SELECT u.id, u.username FROM users u JOIN project_members pm ON u.id = pm.user_id WHERE pm.project_id = $1`,
+            [projectId]
+        );
+        
+        const tasks = tasksResult.rows;
+        const members = membersResult.rows;
+
+        // 3. Format the Context for the AI
+        // We convert our database data into a simple, readable string for the AI.
+        let projectContext = "Current Project State:\n";
+        projectContext += `- Members: ${members.map(m => `${m.username} (ID: ${m.id})`).join(', ')}\n`;
+        projectContext += "- Tasks:\n";
+        tasks.forEach(task => {
+            const assignee = members.find(m => m.id === task.assignee_id);
+            projectContext += `  - Task Title: "${task.title}" (ID: ${task.id}), Status: ${task.status}, Assigned to: ${assignee ? assignee.username : 'Unassigned'}\n`;
+        });
+
+        // 4. Prompt Engineering: Create the final prompt for the AI
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+        const prompt = `You are an intelligent project management assistant. Based ONLY on the provided project state, answer the user's question concisely.
+        
+        ---
+        CONTEXT:
+        ${projectContext}
+        ---
+        
+        USER'S QUESTION:
+        "${message}"
+        `;
+        
+        // 5. Get the AI's response
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        res.json({ reply: text });
+
+    } catch (error) {
+        console.error("Copilot Error:", error);
+        res.status(500).json({ msg: 'The AI assistant failed to respond.' });
+    }
+});
+
 // Start the server
 httpServer.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
