@@ -3,13 +3,13 @@
 import { useEffect, useState, FormEvent } from 'react';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
 import { Send } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 
 // --- Define specific types to replace 'any' ---
 interface Comment {
@@ -41,8 +41,8 @@ interface TaskDetails {
   priority: string;
   due_date: string | null;
   assignee_name: string | null;
-  comments: Comment[];      // <<< FIX: Replaced any[] with Comment[]
-  attachments: Attachment[];// <<< FIX: Replaced any[] with Attachment[]
+  comments: Comment[];
+  attachments: Attachment[];
   labels: Label[];
 }
 
@@ -114,6 +114,7 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId }:
         { content: newComment },
         { headers: { 'x-auth-token': token } }
       );
+      // --- FIX: Clear the input field after successful submission ---
       setNewComment('');
     } catch (error) {
       console.error('Failed to post comment', error);
