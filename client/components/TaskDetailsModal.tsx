@@ -90,7 +90,7 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
       await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}/comments`, { content: newComment }, { headers: { 'x-auth-token': token } });
       setNewComment('');
     } catch (error) {
-      toast.error("Failed to send comment.");
+      toast.error(`Failed to send comment: ${error}`);
     }
   };
 
@@ -103,7 +103,7 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
         onTaskDeleted(taskId); // Update the UI on the project page
         onClose();
     } catch (error) {
-        toast.error("Failed to delete task.");
+        toast.error(`Failed to delete task:${error}`);
     }
   };
 

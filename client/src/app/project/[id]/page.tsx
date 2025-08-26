@@ -10,6 +10,7 @@ import AiTaskGeneratorModal from '../../../../components/AiTaskGeneratorModal';
 import TaskDetailsModal from '../../../../components/TaskDetailsModal';
 import { useProjectData } from '../../../../hooks/useProjectData';
 import { Button } from '@/components/ui/button';
+import CreateTaskModal from '../../../../components/CreateTaskModal';
 
 type TaskStatus = "To Do" | "In Progress" | "Done";
 
@@ -53,6 +54,11 @@ export default function ProjectPage() {
         setIsCreateModalOpen(true);
     };
 
+    const handleCloseCreateModal = () => {
+        setIsCreateModalOpen(false);
+    };
+
+
     // --- Modal Control Functions ---
     const handleOpenTaskModal = (taskId: number) => {
         setSelectedTaskId(taskId);
@@ -95,6 +101,8 @@ export default function ProjectPage() {
                     setTasks={setTasks}
                 />
             )}
+               
+
             
             <TaskDetailsModal 
                 taskId={selectedTaskId}
@@ -103,7 +111,12 @@ export default function ProjectPage() {
                 projectId={parseInt(projectId, 10)}
                 onTaskDeleted={handleTaskDeleted} // <<< Pass the callback here
             />
-
+         <CreateTaskModal
+                isOpen={isCreateModalOpen}
+                onClose={handleCloseCreateModal}
+                projectId={parseInt(projectId, 10)}
+                column={defaultColumn}
+            />
             {!isCopilotOpen && (
                 <Button
                     onClick={() => setIsCopilotOpen(true)}

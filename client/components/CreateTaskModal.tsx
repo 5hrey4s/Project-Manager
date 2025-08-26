@@ -62,7 +62,7 @@ export default function CreateTaskModal({ isOpen, onClose, projectId, column }: 
         <DialogHeader>
           <DialogTitle>Create a New Task</DialogTitle>
           <DialogDescription>
-            Add a new task to the "{column}" column.
+            Add a new task to the &quot;{column}&quot; column.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
