@@ -149,3 +149,26 @@ exports.addProjectMember = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
+exports.deleteProject = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const userId = req.user.id;
+
+        // Security Check: Ensure the user is the owner or an admin of the project
+        const projectMember = await pool.query(
+            'SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2',
+            [projectId, userId]
+        );
+
+        if (projectMember.rows.length === 0 || projectMember.rows[0].role !== 'owner') { // Or 'admin' if you have that role
+            return res.status(403).json({ msg: 'You do not have permission to delete this project.' });
+        }
+
+        await pool.query('DELETE FROM projects WHERE id = $1', [projectId]);
+        res.status(200).json({ msg: 'Project deleted successfully' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};

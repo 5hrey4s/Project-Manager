@@ -24,4 +24,7 @@ router.get('/:taskId/details', taskController.getTaskDetails);
 // POST /api/tasks/:taskId/comments - Add a new comment to a task
 router.post('/:taskId/comments', authMiddleware, taskController.addComment);
 
+// DELETE /api/tasks/:taskId - Delete a task
+router.delete('/:taskId', authMiddleware, taskController.deleteTask);
+
 module.exports = router;

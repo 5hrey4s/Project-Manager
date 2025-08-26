@@ -30,6 +30,10 @@ export default function ProjectPage() {
         setIsTaskModalOpen(false);
         setSelectedTaskId(null);
     };
+
+    const handleTaskDeleted = (deletedTaskId: number) => {
+        setTasks(currentTasks => currentTasks.filter(task => task.id !== deletedTaskId));
+    };
     
     if (loading) {
         return <p className="text-center mt-10">Loading project...</p>;
@@ -60,6 +64,8 @@ export default function ProjectPage() {
                 isOpen={isTaskModalOpen}
                 onClose={handleCloseTaskModal}
                 projectId={parseInt(projectId, 10)} // Pass the projectId
+                                onTaskDeleted={handleTaskDeleted} // <<< Pass the new callback here
+
             />
 
             {!isCopilotOpen && (

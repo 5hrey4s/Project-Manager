@@ -149,7 +149,7 @@ exports.addComment = async (req, res) => {
             FROM inserted_comment ic
             JOIN users u ON ic.user_id = u.id;
         `;
-        
+
         const result = await pool.query(newCommentQuery, [taskId, userId, content]);
         const newComment = result.rows[0];
 
@@ -161,12 +161,12 @@ exports.addComment = async (req, res) => {
             return res.status(404).json({ msg: "Task not found to associate the comment with." });
         }
         const projectId = taskProjectResult.rows[0].project_id;
-        
+
         // 2. Emit a WebSocket event to the specific project's "room"
         // This sends the new comment data to all connected clients in that project
-        io.to(`project-${projectId}`).emit('new_comment', { 
-            taskId: parseInt(taskId, 10), 
-            comment: newComment 
+        io.to(`project-${projectId}`).emit('new_comment', {
+            taskId: parseInt(taskId, 10),
+            comment: newComment
         });
 
         // Respond to the original request with the new comment data
@@ -174,6 +174,30 @@ exports.addComment = async (req, res) => {
 
     } catch (err) {
         console.error('Error adding comment:', err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+exports.deleteTask = async (req, res) => {
+    try {
+        const { taskId } = req.params;
+
+        // Optional: Add a check to ensure the user is a member of the project before deleting
+        // For now, we assume the frontend controls access.
+
+        await pool.query('DELETE FROM tasks WHERE id = $1', [taskId]);
+
+        // --- Real-time Logic ---
+        // Notify clients that a task has been deleted
+        const taskResult = await pool.query('SELECT project_id FROM tasks WHERE id = $1', [taskId]);
+        if (taskResult.rows.length > 0) {
+            const projectId = taskResult.rows[0].project_id;
+            io.to(`project-${projectId}`).emit('task_deleted', { taskId: parseInt(taskId, 10) });
+        }
+
+        res.status(200).json({ msg: 'Task deleted successfully' });
+    } catch (err) {
+        console.error(err.message);
         res.status(500).send('Server Error');
     }
 };

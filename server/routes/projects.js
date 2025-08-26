@@ -26,4 +26,7 @@ router.post('/:projectId/members', projectController.addProjectMember);
 // GET /api/projects/:projectId/tasks - Get all tasks for a project
 router.get('/:projectId/tasks', taskController.getTasksForProject);
 
+// DELETE /api/projects/:projectId - Delete a project
+router.delete('/:projectId', authMiddleware, projectController.deleteProject);
+
 module.exports = router;
