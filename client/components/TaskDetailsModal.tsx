@@ -4,7 +4,7 @@ import { useEffect, useState, FormEvent } from 'react';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
 
-// --- UI Components ---
+// --- UI & Icon Imports ---
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -15,7 +15,7 @@ import { Toaster, toast } from 'sonner';
 import { Send, Trash2, Calendar, User, Tag, Paperclip, GripVertical } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-// --- Type Definitions ---
+// --- Type Definitions for Clarity ---
 interface Comment { id: number; content: string; created_at: string; author_name: string; }
 interface Attachment { id: number; file_name: string; file_url: string; uploaded_at: string; }
 interface Label { id: number; name: string; color: string; }
@@ -37,7 +37,7 @@ interface TaskDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: number;
-  onTaskDeleted: (taskId: number) => void; // Callback to update the main UI
+  onTaskDeleted: (taskId: number) => void; // Callback to update the Kanban board
 }
 
 export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, onTaskDeleted }: TaskDetailsModalProps) {
@@ -49,6 +49,7 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
   useEffect(() => {
     if (!isOpen || !taskId) return;
 
+    // --- Real-time Setup ---
     const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL!);
     socket.emit('join_project', `project-${projectId}`);
     socket.on('new_comment', (data: { taskId: number; comment: Comment }) => {
@@ -57,6 +58,7 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
       }
     });
 
+    // --- Data Fetching ---
     const fetchTaskDetails = async () => {
       setLoading(true);
       try {
@@ -72,12 +74,14 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
     };
     fetchTaskDetails();
 
+    // --- Cleanup ---
     return () => {
       socket.emit('leave_project', `project-${projectId}`);
       socket.disconnect();
     };
   }, [isOpen, taskId, projectId]);
 
+  // --- Event Handlers ---
   const handleCommentSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newComment.trim() || !taskId) return;
@@ -86,7 +90,6 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
       await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}/comments`, { content: newComment }, { headers: { 'x-auth-token': token } });
       setNewComment('');
     } catch (error) {
-      console.error('Failed to post comment', error);
       toast.error("Failed to send comment.");
     }
   };
@@ -97,10 +100,9 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
         const token = localStorage.getItem('token');
         await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}`, { headers: { 'x-auth-token': token } });
         toast.success("Task deleted successfully!");
-        onTaskDeleted(taskId); // Notify parent component to remove task from UI
-        onClose(); // Close the modal
+        onTaskDeleted(taskId); // Update the UI on the project page
+        onClose();
     } catch (error) {
-        console.error('Failed to delete task', error);
         toast.error("Failed to delete task.");
     }
   };
@@ -125,7 +127,7 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
                 <div className="md:col-span-2 p-6 flex flex-col h-full">
                   <div className="flex-grow overflow-y-auto pr-4">
                     <h3 className="font-semibold mb-2 text-lg">Description</h3>
-                    <p className="text-muted-foreground mb-8 prose dark:prose-invert max-w-none">{taskDetails.description || 'No description provided.'}</p>
+                    <div className="text-muted-foreground mb-8 prose dark:prose-invert max-w-none">{taskDetails.description || 'No description provided.'}</div>
                     
                     <h3 className="font-semibold mb-4 text-lg">Comments</h3>
                     <div className="space-y-6">
@@ -162,14 +164,13 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
                   <div>
                       <h4 className="font-semibold mb-3 flex items-center"><Tag className="w-4 h-4 mr-3 text-muted-foreground" />Labels</h4>
                       <div className="flex flex-wrap gap-2">
-                          {taskDetails.labels.map(label => (<Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }}>{label.name}</Badge>))}
-                          {taskDetails.labels.length === 0 && <p className="text-xs text-muted-foreground">No labels</p>}
+                          {taskDetails.labels.length > 0 ? taskDetails.labels.map(label => (<Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }}>{label.name}</Badge>)) : <p className="text-xs text-muted-foreground">No labels</p>}
                       </div>
                   </div>
                   
                   <div>
                       <h4 className="font-semibold mb-3 flex items-center"><Paperclip className="w-4 h-4 mr-3 text-muted-foreground" />Attachments</h4>
-                      <p className="text-xs text-muted-foreground">No attachments</p>
+                      <p className="text-xs text-muted-foreground">No attachments yet</p>
                   </div>
 
                   <div className="pt-6 border-t">
@@ -180,11 +181,11 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>This action cannot be undone. This will permanently delete the task and all of its data.</AlertDialogDescription>
+                          <AlertDialogDescription>This action cannot be undone. This will permanently delete the task and all of its associated data from the servers.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDeleteTask}>Continue</AlertDialogAction>
+                          <AlertDialogAction onClick={handleDeleteTask}>Continue & Delete</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>

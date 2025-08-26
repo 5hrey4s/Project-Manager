@@ -7,7 +7,7 @@ const authMiddleware = require('../middleware/auth');
 router.use(authMiddleware);
 
 // POST /api/tasks - Create a new task
-router.post('/', taskController.createTask);
+router.post('/', authMiddleware, taskController.createTask);
 
 // GET /api/projects/:projectId/tasks - Get tasks for a project
 // Note: We'll place this in projects.js for better REST structure

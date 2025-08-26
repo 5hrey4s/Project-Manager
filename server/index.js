@@ -3,16 +3,16 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 require('dotenv').config();
-const pool = require('./config/db'); // Ensure this path is correct
+const pool = require('./config/db');
 
 // --- Create server and app instances ---
 const app = express();
 const server = http.createServer(app);
 
-// --- 1. Initialize Socket.io with CORS configuration ---
+// --- 1. Initialize Socket.io with proper CORS configuration ---
 const io = new Server(server, {
     cors: {
-        origin: process.env.CLIENT_URL || "http://localhost:3000", // Fallback for local development
+        origin: process.env.CLIENT_URL || "http://localhost:3000", // Fallback for local dev
         methods: ["GET", "POST"]
     }
 });
@@ -60,6 +60,3 @@ io.on('connection', (socket) => {
 // --- Start the Server ---
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-// We no longer need to export everything at the end.
-// module.exports = { app, pool, io }; // This line can be removed

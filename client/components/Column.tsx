@@ -5,6 +5,8 @@ import { useDroppable } from "@dnd-kit/core"
 import TaskCard from "./TaskCard"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
 
 // Define the types needed for this component
 type TaskStatus = "To Do" | "In Progress" | "Done"
@@ -27,7 +29,9 @@ interface ColumnProps {
   tasks: Task[]
   members: Member[]
   onAssign: (taskId: number, assigneeId: number | null) => void
-  onTaskClick: (taskId: number) => void // <<< ADD THIS PROP
+  onTaskClick: (taskId: number) => void 
+    onAddTask: (status: TaskStatus) => void; 
+
 }
 
 const getColumnStyles = (id: TaskStatus) => {
@@ -56,7 +60,7 @@ const getColumnBadgeStyles = (id: TaskStatus) => {
   }
 }
 
-export default function Column({ id, title, tasks, members, onAssign, onTaskClick }: ColumnProps) {
+export default function Column({ id, title, tasks, members, onAssign, onTaskClick,onAddTask  }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
 
   return (
@@ -75,29 +79,30 @@ export default function Column({ id, title, tasks, members, onAssign, onTaskClic
         </Badge>
       </div>
 
-      <SortableContext id={id} items={tasks.map((t) => t.id)}>
-        <div className="space-y-3">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              members={members}
-              onAssign={onAssign}
-              onCardClick={onTaskClick} // <<< PASS THE PROP DOWN
-            />
-          ))}
-          {tasks.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-              </div>
-              <p className="text-sm">No tasks here.</p>
-            </div>
-          )}
+    <div className="flex flex-col flex-grow">
+        <SortableContext id={id} items={tasks.map((t) => t.id)}>
+          <div className="space-y-3 flex-grow">
+            {tasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                members={members}
+                onAssign={onAssign}
+                onCardClick={onTaskClick}
+              />
+            ))}
+            {/* ... (empty state div remains the same) */}
+          </div>
+        </SortableContext>
+        
+        {/* --- ADD THIS BUTTON AT THE BOTTOM --- */}
+        <div className="mt-4">
+          <Button variant="ghost" className="w-full" onClick={() => onAddTask(id)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add a card
+          </Button>
         </div>
-      </SortableContext>
+      </div>
     </Card>
   )
 }

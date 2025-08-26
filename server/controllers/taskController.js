@@ -18,17 +18,23 @@ exports.getTasksForProject = async (req, res) => {
 
 exports.createTask = async (req, res) => {
     try {
-        const { title, projectId } = req.body;
-        if (!title || !projectId) {
-            return res.status(400).json({ msg: 'Title and Project ID are required' });
-        }
-        const newTask = await pool.query(
-            "INSERT INTO tasks (title, project_id) VALUES ($1, $2) RETURNING *",
-            [title, projectId]
-        );
-        res.status(201).json(newTask.rows[0]);
+        const { title, projectId, status } = req.body;
+
+        const newTaskQuery = `
+            INSERT INTO tasks (title, project_id, status) 
+            VALUES ($1, $2, $3) 
+            RETURNING id, title, status, assignee_id, project_id;
+        `;
+
+        const result = await pool.query(newTaskQuery, [title, projectId, status]);
+        const newTask = result.rows[0];
+
+        // Real-time broadcast to all users in the project
+        io.to(`project-${projectId}`).emit('task_created', newTask);
+
+        res.status(201).json(newTask);
     } catch (err) {
-        console.error(err.message);
+        console.error('Error creating task:', err.message);
         res.status(500).send('Server Error');
     }
 };
@@ -182,22 +188,22 @@ exports.deleteTask = async (req, res) => {
     try {
         const { taskId } = req.params;
 
-        // Optional: Add a check to ensure the user is a member of the project before deleting
-        // For now, we assume the frontend controls access.
+        // First, get the project_id to notify the correct room
+        const taskResult = await pool.query('SELECT project_id FROM tasks WHERE id = $1', [taskId]);
+        if (taskResult.rows.length === 0) {
+            return res.status(404).json({ msg: 'Task not found' });
+        }
+        const { project_id } = taskResult.rows[0];
 
+        // Delete the task
         await pool.query('DELETE FROM tasks WHERE id = $1', [taskId]);
 
-        // --- Real-time Logic ---
-        // Notify clients that a task has been deleted
-        const taskResult = await pool.query('SELECT project_id FROM tasks WHERE id = $1', [taskId]);
-        if (taskResult.rows.length > 0) {
-            const projectId = taskResult.rows[0].project_id;
-            io.to(`project-${projectId}`).emit('task_deleted', { taskId: parseInt(taskId, 10) });
-        }
+        // Real-time broadcast of the deletion
+        io.to(`project-${project_id}`).emit('task_deleted', { taskId: parseInt(taskId, 10), projectId: project_id });
 
         res.status(200).json({ msg: 'Task deleted successfully' });
     } catch (err) {
-        console.error(err.message);
+        console.error('Error deleting task:', err.message);
         res.status(500).send('Server Error');
     }
 };
