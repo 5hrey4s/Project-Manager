@@ -12,4 +12,7 @@ router.post('/login', authController.loginUser);
 // Defines the route for GET /api/users/user
 router.get('/user', authMiddleware, authController.getLoggedInUser);
 
+// GET /api/users/me/tasks - Get all tasks assigned to the logged-in user
+router.get('/me/tasks', authMiddleware, authController.getMyTasks);
+
 module.exports = router;

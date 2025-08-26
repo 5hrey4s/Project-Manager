@@ -30,13 +30,35 @@ exports.createProject = async (req, res) => {
 
 exports.getUserProjects = async (req, res) => {
     try {
-        const projects = await pool.query(
-            "SELECT * FROM projects WHERE owner_id = $1 ORDER BY created_at DESC",
-            [req.user.id]
-        );
-        res.json(projects.rows);
+        const userId = req.user.id;
+        const projectsQuery = `
+            SELECT
+                p.*,
+                COALESCE(t.total_tasks, 0) as total_tasks,
+                COALESCE(t.done_tasks, 0) as done_tasks,
+                CASE 
+                    WHEN COALESCE(t.total_tasks, 0) > 0 THEN (COALESCE(t.done_tasks, 0) * 100.0 / t.total_tasks)
+                    ELSE 0 
+                END as completion_percentage
+            FROM projects p
+            JOIN project_members pm ON p.id = pm.project_id
+            LEFT JOIN (
+                SELECT 
+                    project_id, 
+                    COUNT(*) as total_tasks,
+                    COUNT(CASE WHEN status = 'Done' THEN 1 END) as done_tasks
+                FROM tasks
+                GROUP BY project_id
+            ) t ON p.id = t.project_id
+            WHERE pm.user_id = $1
+            ORDER BY p.updated_at DESC;
+        `;
+
+        const projectsResult = await pool.query(projectsQuery, [userId]);
+        res.json(projectsResult.rows);
+
     } catch (err) {
-        console.error(err.message);
+        console.error('Error fetching user projects:', err.message);
         res.status(500).send('Server Error');
     }
 };

@@ -1,30 +1,43 @@
-'use client'; // For App Router
+'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-// --- Define Types for our data ---
+// --- shadcn/ui Imports ---
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
+
+// --- Updated Types ---
 interface User {
   id: number;
   username: string;
-  email: string;
 }
 interface Project {
   id: number;
   name: string;
-  description: string;
+  completion_percentage: number; // For the progress bar
+}
+interface Task {
+  id:number;
+  title: string;
+  status: string;
+  project_name: string;
 }
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [myTasks, setMyTasks] = useState<Task[]>([]); // New state for your tasks
   const [newProjectName, setNewProjectName] = useState('');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // --- Fetch initial data (user and projects) ---
   useEffect(() => {
     const fetchData = async () => {
       const token = localStorage.getItem('token');
@@ -32,17 +45,18 @@ export default function Dashboard() {
         router.push('/login');
         return;
       }
-
       const axiosConfig = { headers: { 'x-auth-token': token } };
 
       try {
-        // Fetch user and projects in parallel for efficiency
-        const [userResponse, projectsResponse] = await Promise.all([
+        // Fetch user, projects (with progress), and assigned tasks
+        const [userResponse, projectsResponse, tasksResponse] = await Promise.all([
           axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/users/user`, axiosConfig),
           axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`, axiosConfig),
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me/tasks`, axiosConfig) // Fetch your tasks
         ]);
         setUser(userResponse.data);
         setProjects(projectsResponse.data);
+        setMyTasks(tasksResponse.data); // Set your tasks
       } catch (error) {
         console.error('Failed to fetch data', error);
         localStorage.removeItem('token');
@@ -51,15 +65,12 @@ export default function Dashboard() {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [router]);
 
-  // --- Handle New Project Form Submission ---
   const handleCreateProject = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!newProjectName.trim()) return; // Prevent empty project names
-
+    if (!newProjectName.trim()) return;
     const token = localStorage.getItem('token');
     try {
       const response = await axios.post(
@@ -67,12 +78,10 @@ export default function Dashboard() {
         { name: newProjectName },
         { headers: { 'x-auth-token': token } }
       );
-      // Add the new project to the top of the list
       setProjects([response.data, ...projects]);
-      setNewProjectName(''); // Clear the input field
+      setNewProjectName('');
     } catch (error) {
       console.error('Failed to create project', error);
-      alert('Error: Could not create the project.');
     }
   };
 
@@ -82,46 +91,92 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-4 md:p-8">
+      <div className="max-w-7xl mx-auto p-4 md:p-8">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Welcome back, {user?.username}!</p>
         </header>
 
-        {/* Create Project Section */}
-        <section className="mb-10 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">Create a New Project</h2>
-          <form onSubmit={handleCreateProject} className="flex gap-4">
-            <input
-              type="text"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              placeholder="Your new project name"
-              className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-            >
-              Create
-            </button>
-          </form>
-        </section>
+        {/* Top section with "My Tasks" and "Create Project" */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+          
+          {/* "My Tasks" Widget */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>My Tasks</CardTitle>
+              <CardDescription>Tasks assigned to you across all projects.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Task</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {myTasks.length > 0 ? (
+                    myTasks.map(task => (
+                      <TableRow key={task.id}>
+                        <TableCell className="font-medium">{task.title}</TableCell>
+                        <TableCell>{task.project_name}</TableCell>
+                        <TableCell>{task.status}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center">You have no pending tasks. Great job!</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          
+          {/* "Create Project" Widget */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Create a New Project</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateProject} className="space-y-4">
+                <Input
+                  type="text"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  placeholder="Your new project name"
+                />
+                <Button type="submit" className="w-full">Create</Button>
+              </form>
+            </CardContent>
+          </Card>
 
-        {/* Projects List Section */}
+        </div>
+
+        {/* "All Projects" Section */}
         <section>
-          <h2 className="text-xl font-semibold mb-4">Your Projects</h2>
-          <div className="space-y-4">
+          <h2 className="text-2xl font-semibold mb-4">All Projects</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.length > 0 ? (
               projects.map((project) => (
                 <Link href={`/project/${project.id}`} key={project.id}>
-  <div className="bg-white p-4 rounded-lg shadow border border-gray-200 hover:bg-gray-50 cursor-pointer">
-    <h3 className="font-bold text-lg">{project.name}</h3>
-  </div>
-</Link>
+                  <Card className="hover:border-indigo-500 transition-colors">
+                    <CardHeader>
+                      <CardTitle>{project.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex justify-between items-center text-sm text-gray-500 mb-2">
+                        <span>Progress</span>
+                        <span>{Math.round(project.completion_percentage)}%</span>
+                      </div>
+                      <Progress value={project.completion_percentage} />
+                    </CardContent>
+                  </Card>
+                </Link>
               ))
             ) : (
-              <p className="bg-white p-4 rounded-lg shadow-sm text-gray-500">You haven&apos;t created any projects yet.</p>
+              <p className="col-span-full bg-white p-4 rounded-lg text-gray-500">You haven&apos;t created any projects yet.</p>
             )}
           </div>
         </section>

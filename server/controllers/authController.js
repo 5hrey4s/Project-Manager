@@ -59,3 +59,25 @@ exports.getLoggedInUser = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
+exports.getMyTasks = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const tasksResult = await pool.query(
+            `SELECT 
+                t.id, 
+                t.title, 
+                t.status, 
+                p.name as project_name 
+             FROM tasks t
+             JOIN projects p ON t.project_id = p.id
+             WHERE t.assignee_id = $1 AND t.status != 'Done'
+             ORDER BY t.created_at DESC`,
+            [userId]
+        );
+        res.json(tasksResult.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
