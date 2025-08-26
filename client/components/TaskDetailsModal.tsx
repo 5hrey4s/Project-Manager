@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/context/AuthContext';
 import { Send } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 // --- Define specific types to replace 'any' ---
 interface Comment {
