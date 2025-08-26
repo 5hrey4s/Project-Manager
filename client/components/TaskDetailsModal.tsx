@@ -3,7 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
