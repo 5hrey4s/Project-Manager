@@ -7,19 +7,29 @@ import KanbanBoard from '../../../../components/KanbanBoard';
 import CopilotChat from '../../../../components/CopilotChat';
 import AiTaskGeneratorModal from '../../../../components/AiTaskGeneratorModal';
 import { useProjectData } from '../../../../hooks/useProjectData';
-
-
+import TaskDetailsModal from '../../../../components/TaskDetailsModal'; // Import the modal
 
 export default function ProjectPage() {
     const params = useParams();
     const projectId = params.id as string;
     
-    // All data fetching and state is handled by our clean custom hook
     const { project, tasks, members, loading, setTasks } = useProjectData(projectId);
 
-    // State that this page component still needs to manage
+    // --- State for managing modals ---
+    const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isAiModalOpen, setIsAiModalOpen] = useState(false);
     const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+    
+    const handleOpenTaskModal = (taskId: number) => {
+        setSelectedTaskId(taskId);
+        setIsTaskModalOpen(true);
+    };
+
+    const handleCloseTaskModal = () => {
+        setIsTaskModalOpen(false);
+        setSelectedTaskId(null);
+    };
     
     if (loading) {
         return <p className="text-center mt-10">Loading project...</p>;
@@ -33,6 +43,7 @@ export default function ProjectPage() {
                 tasks={tasks}
                 members={members}
                 setTasks={setTasks}
+                onTaskClick={handleOpenTaskModal} // Pass the click handler
             />
             
             {isAiModalOpen && (
@@ -43,6 +54,14 @@ export default function ProjectPage() {
                 />
             )}
             
+            {/* --- Pass the necessary props to the TaskDetailsModal --- */}
+            <TaskDetailsModal 
+                taskId={selectedTaskId}
+                isOpen={isTaskModalOpen}
+                onClose={handleCloseTaskModal}
+                projectId={parseInt(projectId, 10)} // Pass the projectId
+            />
+
             {!isCopilotOpen && (
                 <button
                     onClick={() => setIsCopilotOpen(true)}

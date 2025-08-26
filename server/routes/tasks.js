@@ -18,4 +18,10 @@ router.patch('/:taskId/status', taskController.updateTaskStatus);
 // PATCH /api/tasks/:taskId/assign - Assign a task
 router.patch('/:taskId/assign', taskController.assignTask);
 
+// GET /api/tasks/:taskId/details - Get all details for a single task
+router.get('/:taskId/details', taskController.getTaskDetails);
+
+// POST /api/tasks/:taskId/comments - Add a new comment to a task
+router.post('/:taskId/comments', authMiddleware, taskController.addComment);
+
 module.exports = router;

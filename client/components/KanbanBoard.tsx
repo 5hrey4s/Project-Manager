@@ -25,9 +25,10 @@ interface KanbanBoardProps {
   tasks: Task[]
   members: Member[]
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>
+  onTaskClick: (taskId: number) => void // <<< ADD THIS PROP
 }
 
-export default function KanbanBoard({ tasks, members, setTasks }: KanbanBoardProps) {
+export default function KanbanBoard({ tasks, members, setTasks, onTaskClick }: KanbanBoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       // Require the mouse to move 10 pixels before activating a drag
@@ -46,7 +47,7 @@ export default function KanbanBoard({ tasks, members, setTasks }: KanbanBoardPro
       const destinationColumn = over.id as TaskStatus
 
       if (activeTask && activeTask.status !== destinationColumn) {
-        handleStatusChange(activeTask.id, destinationColumn)
+        handleStatusChange(activeTask.id as number, destinationColumn)
       }
     }
   }
@@ -93,6 +94,7 @@ export default function KanbanBoard({ tasks, members, setTasks }: KanbanBoardPro
             tasks={tasks.filter((task) => task.status === id)}
             members={members}
             onAssign={handleAssignTask}
+            onTaskClick={onTaskClick} // <<< PASS THE PROP DOWN
           />
         ))}
       </div>

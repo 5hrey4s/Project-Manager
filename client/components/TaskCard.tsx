@@ -23,9 +23,10 @@ interface TaskCardProps {
   task: Task
   members: Member[]
   onAssign: (taskId: number, assigneeId: number | null) => void
+  onCardClick: (taskId: number) => void // <<< ADD THIS PROP
 }
 
-export default function TaskCard({ task, members, onAssign }: TaskCardProps) {
+export default function TaskCard({ task, members, onAssign, onCardClick }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: {
@@ -51,26 +52,17 @@ export default function TaskCard({ task, members, onAssign }: TaskCardProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`
-        group cursor-grab active:cursor-grabbing transition-all duration-200
-        hover:shadow-md hover:-translate-y-1 border-l-4 border-l-transparent
-        hover:border-l-primary/50 touch-none
-        ${isDragging ? "opacity-50 shadow-2xl rotate-3 scale-105 z-50" : ""}
-      `}
+      onClick={() => onCardClick(task.id)} // <<< ADD THIS ONCLICK HANDLER
+      className={`p-4 bg-background shadow-sm rounded-lg border hover:shadow-md cursor-pointer transition-shadow ${
+        isDragging ? "opacity-50" : "opacity-100"
+      }`}
     >
-      <CardContent className="p-4">
-        <div className="space-y-3">
-          <p className="font-medium text-sm leading-relaxed text-foreground group-hover:text-primary transition-colors">
-            {task.title}
-          </p>
-
+      <CardContent className="p-0">
+        <div className="flex flex-col gap-3">
+          <p className="font-medium text-sm text-foreground leading-snug">{task.title}</p>
           <div className="flex items-center justify-between">
-            <Select value={task.assignee_id?.toString() ?? "unassigned"} onValueChange={handleAssignmentChange}>
-              <SelectTrigger
-                className="w-auto h-8 text-xs border-0 bg-muted/50 hover:bg-muted focus:ring-1"
-                onClick={(e) => e.stopPropagation()}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
+            <Select onValueChange={handleAssignmentChange} defaultValue={assignee?.id.toString()}>
+              <SelectTrigger className="w-auto h-auto text-xs bg-transparent border-none focus:ring-0 p-0">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent>
