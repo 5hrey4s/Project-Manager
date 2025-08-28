@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./config/db');
+const passport = require('passport'); // <<< ADD THIS
 
 // --- Create server and app instances ---
 const app = express();
@@ -27,16 +28,19 @@ const userRoutes = require('./routes/users');
 const projectRoutes = require('./routes/projects');
 const taskRoutes = require('./routes/tasks');
 const aiRoutes = require('./routes/ai');
+require('./config/passport'); // <<< ADD THIS to run the passport config code
 
 // --- Middleware ---
 app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:3000" }));
 app.use(express.json());
+app.use(passport.initialize()); // <<< ADD THIS to initialize passport
 
 // --- 4. Register API Routes ---
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/auth', authRoutes); // <<< ADD THIS to use the new auth routes
 
 // --- Socket.io Connection Logic ---
 io.on('connection', (socket) => {
