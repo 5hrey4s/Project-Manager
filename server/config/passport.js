@@ -7,7 +7,7 @@ const GitHubStrategy = require('passport-github2').Strategy; // <<< Import GitHu
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "https://project-manager-api-4kb8.onrender.com/api/auth/google/callback", // Must match the URI in Google Cloud Console
+    callbackURL: "/api/auth/google/callback", // Must match the URI in Google Cloud Console
     proxy: true // Important for Render deployment
 },
     async (accessToken, refreshToken, profile, done) => {
@@ -44,7 +44,7 @@ passport.use(new GoogleStrategy({
 passport.use(new GitHubStrategy({
     clientID: process.env.GITHUB_CLIENT_ID,
     clientSecret: process.env.GITHUB_CLIENT_SECRET,
-    callbackURL: "/api/auth/github/callback",
+    callbackURL: "https://project-manager-api-4kb8.onrender.com/api/auth/github/callback",
     scope: ['user:email'] // <<< Important: asks for user's primary email
 },
     async (accessToken, refreshToken, profile, done) => {
