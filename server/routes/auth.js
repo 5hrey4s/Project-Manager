@@ -35,4 +35,24 @@ router.get('/google/callback',
     }
 );
 
+// --- NEW: GitHub Routes ---
+router.get('/github',
+    passport.authenticate('github', { scope: ['user:email'] })
+);
+
+router.get('/github/callback',
+    passport.authenticate('github', { failureRedirect: `${process.env.CLIENT_URL}/login?error=auth-failed`, session: false }),
+    (req, res) => {
+        // This logic is identical to the Google callback
+        const payload = {
+            user: {
+                id: req.user.id,
+                username: req.user.username
+            }
+        };
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.redirect(`${process.env.CLIENT_URL}/auth/callback?token=${token}`);
+    }
+);
+
 module.exports = router;

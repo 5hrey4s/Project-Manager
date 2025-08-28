@@ -38,3 +38,41 @@ passport.use(new GoogleStrategy({
         }
     }
 ));
+
+// --- NEW: GitHub Strategy ---
+passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    callbackURL: "/api/auth/github/callback",
+    scope: ['user:email'] // <<< Important: asks for user's primary email
+},
+    async (accessToken, refreshToken, profile, done) => {
+        const { id, displayName, emails, photos } = profile;
+        const email = emails[0].value;
+        const avatarUrl = photos ? photos[0].value : null;
+
+        try {
+            let userResult = await pool.query('SELECT * FROM users WHERE github_id = $1 OR email = $2', [id, email]);
+            let user = userResult.rows[0];
+
+            if (user) {
+                if (!user.github_id) {
+                    // If user exists with email but hasn't linked GitHub, link the account
+                    await pool.query('UPDATE users SET github_id = $1, avatar_url = $2 WHERE id = $3', [id, avatarUrl, user.id]);
+                    user.github_id = id;
+                }
+            } else {
+                // If user doesn't exist, create a new one
+                const newUserResult = await pool.query(
+                    'INSERT INTO users (github_id, username, email, avatar_url) VALUES ($1, $2, $3, $4) RETURNING *',
+                    [id, displayName, email, avatarUrl]
+                );
+                user = newUserResult.rows[0];
+            }
+
+            return done(null, user);
+        } catch (err) {
+            return done(err, null);
+        }
+    }
+));
