@@ -28,6 +28,7 @@ const userRoutes = require('./routes/users');
 const projectRoutes = require('./routes/projects');
 const taskRoutes = require('./routes/tasks');
 const aiRoutes = require('./routes/ai');
+const authRoutes = require('./routes/auth'); // <<< ADD THIS
 require('./config/passport'); // <<< ADD THIS to run the passport config code
 
 // --- Middleware ---
