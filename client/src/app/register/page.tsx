@@ -1,99 +1,104 @@
-'use client'; // Add this line if you're using the App Router
+'use client';
 
-import { useState } from 'react';
-import axios from 'axios';
+import { useState, FormEvent } from 'react';
+import axios, { isAxiosError } from 'axios';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast, Toaster } from 'sonner';
 
-export default function Register() {
-  // State to hold the form data
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-  });
-  
-  // State for messages (e.g., success or error)
-  const [message, setMessage] = useState('');
+export default function RegisterPage() {
+    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const router = useRouter();
 
-  // Update state when user types in an input field
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setIsLoading(true);
 
-  // Handle the form submission
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // Prevent the default browser refresh on submit
-    setMessage(''); // Clear previous messages
+        if (password.length < 6) {
+            toast.error("Password must be at least 6 characters long.");
+            setIsLoading(false);
+            return;
+        }
 
-    try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/users/register`, formData);
-      console.log('Registration successful:', response.data);
-      setMessage(`Welcome, ${response.data.username}! Registration successful.`);
-      // Optionally, redirect the user or clear the form
-      setFormData({ username: '', email: '', password: '' });
-    } catch (error: unknown) {
-    if (axios.isAxiosError(error)) {
-      // It's an Axios error, so we can safely access response data
-      setMessage(error.response?.data.msg || 'Registration failed. Please try again.');
-    } else {
-      // It's a different kind of error (e.g., a network issue)
-      console.error(error);
-      setMessage('An unexpected error occurred.');
-    }
-  }
-  };
+        try {
+            await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/users/register`, {
+                username,
+                email,
+                password,
+            });
+            
+            toast.success("Registration successful! Redirecting to login...");
 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center">Create an Account</h1>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Username</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-          <div>
-            <button
-              type="submit"
-              className="w-full px-4 py-2 font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Sign Up
-            </button>
-          </div>
-        </form>
-        {message && <p className="mt-4 text-center text-sm text-red-600">{message}</p>}
-      </div>
-    </div>
-  );
+            setTimeout(() => {
+                router.push('/login');
+            }, 2000);
+
+        } catch (err) {
+            if (isAxiosError(err) && err.response) {
+                toast.error(err.response.data.msg || 'Registration failed. Please try again.');
+            } else {
+                toast.error('An unexpected error occurred.');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <>
+            <Toaster position="top-right" richColors />
+            <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-950">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                        <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
+                        <CardDescription>Get started with KanbanFlow today</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <Input
+                                type="text"
+                                placeholder="Username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required
+                                disabled={isLoading}
+                            />
+                            <Input
+                                type="email"
+                                placeholder="Email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                disabled={isLoading}
+                            />
+                            <Input
+                                type="password"
+                                placeholder="Password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                disabled={isLoading}
+                            />
+                            <Button type="submit" className="w-full" disabled={isLoading}>
+                                {isLoading ? 'Creating Account...' : 'Sign Up'}
+                            </Button>
+                        </form>
+                        
+                        <p className="mt-6 text-center text-sm text-muted-foreground">
+                            Already have an account?{' '}
+                            <Link href="/login" className="font-medium text-primary hover:underline">
+                                Sign in
+                            </Link>
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+        </>
+    );
 }
