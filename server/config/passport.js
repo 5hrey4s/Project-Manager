@@ -2,6 +2,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const pool = require('./db'); // Make sure this path to your db config is correct
 const jwt = require('jsonwebtoken');
+const GitHubStrategy = require('passport-github2').Strategy; // <<< Import GitHub Strategy
 
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
