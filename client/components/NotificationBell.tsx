@@ -33,6 +33,7 @@ export default function NotificationBell() {
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
     useEffect(() => {
+        // Only run this effect if the user is authenticated
         if (!isAuthenticated || !user) {
             return;
         }
@@ -62,13 +63,15 @@ export default function NotificationBell() {
             });
 
             socketRef.current.on('new_notification', (newNotification: Notification) => {
+                // Use functional update to avoid stale state issues
                 setNotifications(prev => [newNotification, ...prev]);
             });
         }
 
-        // --- Cleanup function: Disconnect the socket when the component unmounts ---
+        // --- Cleanup function: This runs when the component unmounts ---
         return () => {
             if (socketRef.current) {
+                console.log('Disconnecting socket...');
                 socketRef.current.disconnect();
                 socketRef.current = null;
             }
@@ -93,6 +96,7 @@ export default function NotificationBell() {
     
     const timeSince = (date: string) => {
         const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+        if (seconds < 5) return "just now";
         let interval = seconds / 31536000;
         if (interval > 1) return Math.floor(interval) + "y";
         interval = seconds / 2592000;
@@ -129,7 +133,7 @@ export default function NotificationBell() {
                     {notifications.length > 0 ? (
                         notifications.map((notif) => (
                             <Link 
-                                href={`/project/${notif.project_id}?taskId=${notif.task_id}`} 
+                                href={notif.task_id ? `/project/${notif.project_id}?taskId=${notif.task_id}` : `/project/${notif.project_id}`}
                                 key={notif.id}
                                 className="block"
                                 onClick={() => setIsOpen(false)}
