@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
 import { Bell } from 'lucide-react';
@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 
+// --- Type Definitions ---
 interface Notification {
     id: number;
     content: string;
@@ -25,23 +26,18 @@ export default function NotificationBell() {
     const { user, isAuthenticated } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
+    
+    // *** FIX: Use useRef to hold the socket instance. This prevents it from being recreated on every render. ***
+    const socketRef = useRef<Socket | null>(null);
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
-    // *** FIX: Memoize the socket connection to prevent re-renders from creating multiple connections ***
-    const socket = useMemo(() => {
-        if (isAuthenticated && user) {
-            return io(process.env.NEXT_PUBLIC_API_URL!, {
-                query: { userId: user.id },
-            });
-        }
-        return null;
-    }, [isAuthenticated, user]);
-
-
     useEffect(() => {
-        if (!isAuthenticated || !user || !socket) return;
+        if (!isAuthenticated || !user) {
+            return;
+        }
 
+        // --- Fetch initial notifications ---
         const fetchNotifications = async () => {
             try {
                 const token = localStorage.getItem('token');
@@ -55,19 +51,31 @@ export default function NotificationBell() {
         };
         fetchNotifications();
         
-        socket.on('new_notification', (newNotification: Notification) => {
-            setNotifications(prev => [newNotification, ...prev]);
-        });
+        // *** FIX: Establish the socket connection only once and store it in the ref. ***
+        if (!socketRef.current) {
+            socketRef.current = io(process.env.NEXT_PUBLIC_API_URL!, {
+                query: { userId: user.id },
+            });
 
+            socketRef.current.on('connect', () => {
+                console.log('Socket connected:', socketRef.current?.id);
+            });
+
+            socketRef.current.on('new_notification', (newNotification: Notification) => {
+                setNotifications(prev => [newNotification, ...prev]);
+            });
+        }
+
+        // --- Cleanup function: Disconnect the socket when the component unmounts ---
         return () => {
-            socket.off('new_notification');
-            socket.disconnect();
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
         };
 
-    }, [isAuthenticated, user, socket]);
+    }, [isAuthenticated, user]);
 
-    // ... (rest of the component remains the same)
-    // ... (handleOpenChange, timeSince, JSX)
     const handleOpenChange = async (open: boolean) => {
         setIsOpen(open);
         if (!open && unreadCount > 0) {
