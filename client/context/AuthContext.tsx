@@ -13,7 +13,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (token: string) => void; // Changed to be synchronous
+  login: (token: string) => Promise<void>; // <<< Revert to Promise<void>
   logout: () => void;
 }
 
@@ -45,15 +45,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = (token: string) => {
+   const login = async (token: string) => { // <<< Revert to async
     try {
       localStorage.setItem('token', token);
       const decoded: { user: User } = jwtDecode(token);
-      setUser(decoded.user); // <<< FIX: Set user state immediately and synchronously
-      // The redirection is now handled by the callback page itself
+      setUser(decoded.user);
     } catch (error) {
         console.error("Failed to decode token on login:", error);
-        logout(); // Clear state if login fails
+        logout();
     }
   };
 

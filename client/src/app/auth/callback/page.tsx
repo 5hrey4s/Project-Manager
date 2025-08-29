@@ -10,18 +10,20 @@ export default function AuthCallbackPage() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
-        const token = searchParams.get('token');
+        const handleAuth = async () => {
+            const token = searchParams.get('token');
 
-        if (token) {
-            // Use the login function from our AuthContext to save the token
-            login(token).then(() => {
-                // After successful login, redirect to the dashboard
+            if (token) {
+                // <<< FIX: Await the login process to complete
+                await login(token);
+                // After login is complete, the user state is set. NOW we can redirect.
                 router.push('/dashboard');
-            });
-        } else {
-            // If for some reason there's no token, redirect to the login page with an error
-            router.push('/login?error=auth_failed');
-        }
+            } else {
+                router.push('/login?error=auth_failed');
+            }
+        };
+
+        handleAuth();
     }, [login, router, searchParams]);
 
     return (
