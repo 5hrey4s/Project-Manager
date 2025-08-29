@@ -29,6 +29,7 @@ const projectRoutes = require('./routes/projects');
 const taskRoutes = require('./routes/tasks');
 const aiRoutes = require('./routes/ai');
 const authRoutes = require('./routes/auth'); // <<< ADD THIS
+const notificationRoutes = require('./routes/notifications'); // <<< ADD THIS
 require('./config/passport'); // <<< ADD THIS to run the passport config code
 
 // --- Middleware ---
@@ -42,11 +43,19 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/auth', authRoutes); // <<< ADD THIS to use the new auth routes
+app.use('/api/notifications', notificationRoutes); // <<< ADD THIS
 
 // --- Socket.io Connection Logic ---
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
-
+  // Get the user ID from the handshake query (the frontend will need to send this)
+  const { userId } = socket.handshake.query;
+  if (userId) {
+    // Each user joins a room named after their own ID
+    // This allows us to send notifications directly to a specific user
+    socket.join(`user-${userId}`);
+    console.log(`User ${socket.id} (User ID: ${userId}) connected and joined their room.`);
+  }
     socket.on('join_project', (projectId) => {
         socket.join(projectId);
         console.log(`User ${socket.id} joined project room: ${projectId}`);

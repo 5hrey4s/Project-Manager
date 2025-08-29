@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { io } = require('../index'); // We need to import io to emit events
+const { createNotification } = require('../services/notificationService');
 
 exports.getTasksForProject = async (req, res) => {
     try {
@@ -42,15 +43,48 @@ exports.createTask = async (req, res) => {
 exports.updateTaskStatus = async (req, res) => {
     try {
         const { taskId } = req.params;
-        const { status } = req.body;
-        // ... (Add your security checks here if needed, e.g., verify user is a member)
-        const updatedTaskResult = await pool.query(
-            "UPDATE tasks SET status = $1 WHERE id = $2 RETURNING *",
-            [status, taskId]
+        const { status, assignee_id } = req.body;
+        const userId = req.user.id; // User making the change
+
+        // Get the task's current state before updating
+        const currentState = await pool.query('SELECT assignee_id, project_id FROM tasks WHERE id = $1', [taskId]);
+        if (currentState.rows.length === 0) {
+            return res.status(404).json({ msg: 'Task not found' });
+        }
+        const oldAssigneeId = currentState.rows[0].assignee_id;
+        const projectId = currentState.rows[0].project_id;
+
+        // Update the task in the database
+        const result = await pool.query(
+            'UPDATE tasks SET status = $1, assignee_id = $2 WHERE id = $3 RETURNING *',
+            [status, assignee_id, taskId]
         );
-        const updatedTask = updatedTaskResult.rows[0];
-        io.to(updatedTask.project_id.toString()).emit('task_updated', updatedTask);
+        const updatedTask = result.rows[0];
+
+        // --- NEW: Notification logic for task assignment ---
+        // Check if the assignee has changed and is not null
+        if (assignee_id && assignee_id !== oldAssigneeId) {
+            const taskTitleResult = await pool.query('SELECT title FROM tasks WHERE id = $1', [taskId]);
+            const taskTitle = taskTitleResult.rows[0]?.title || 'a task';
+            
+            // Avoid notifying users if they assign a task to themselves
+            if (assignee_id !== userId) {
+                 await createNotification({
+                    recipient_id: assignee_id,
+                    sender_id: userId,
+                    type: 'task_assigned',
+                    content: `assigned you to the task "${taskTitle}"`,
+                    project_id: projectId,
+                    task_id: parseInt(taskId, 10),
+                });
+            }
+        }
+        // --- End of notification logic ---
+
+        // Real-time update for the Kanban board
+        io.to(`project-${updatedTask.project_id}`).emit('task_updated', updatedTask);
         res.json(updatedTask);
+
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -134,52 +168,63 @@ exports.addComment = async (req, res) => {
     try {
         const { taskId } = req.params;
         const { content } = req.body;
-        const userId = req.user.id; // From the authMiddleware
+        const userId = req.user.id;
 
-        if (!content || content.trim() === '') {
-            return res.status(400).json({ msg: 'Comment content cannot be empty.' });
+        const result = await pool.query(
+            'INSERT INTO comments (task_id, author_id, content) VALUES ($1, $2, $3) RETURNING *',
+            [taskId, userId, content]
+        );
+        const newCommentData = result.rows[0];
+
+        const authorInfo = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+        const authorName = authorInfo.rows[0].username;
+
+        const taskInfo = await pool.query('SELECT project_id, title FROM tasks WHERE id = $1', [taskId]);
+        const { project_id: projectId, title: taskTitle } = taskInfo.rows[0];
+
+        const commentForSocket = {
+            id: newCommentData.id,
+            content: newCommentData.content,
+            created_at: newCommentData.created_at,
+            author_name: authorName
+        };
+
+        // --- NEW: Notification logic for @mentions ---
+        // Find all @username mentions in the comment
+        const mentions = content.match(/@(\w+)/g);
+        if (mentions) {
+            // Remove the '@' symbol and get a unique list of usernames
+            const mentionedUsernames = [...new Set(mentions.map(m => m.substring(1)))];
+            
+            // Find the user IDs for these usernames
+            const usersResult = await pool.query(
+                'SELECT id FROM users WHERE username = ANY($1::text[])',
+                [mentionedUsernames]
+            );
+
+            // Create a notification for each valid mentioned user
+            for (const user of usersResult.rows) {
+                // Don't notify the user who wrote the comment
+                if (user.id !== userId) {
+                    await createNotification({
+                        recipient_id: user.id,
+                        sender_id: userId,
+                        type: 'comment_mention',
+                        content: `mentioned you in a comment on "${taskTitle}"`,
+                        project_id: projectId,
+                        task_id: parseInt(taskId, 10),
+                    });
+                }
+            }
         }
+        // --- End of notification logic ---
 
-        // Insert the new comment and retrieve it along with the author's username
-        const newCommentQuery = `
-            WITH inserted_comment AS (
-                INSERT INTO comments (task_id, user_id, content)
-                VALUES ($1, $2, $3)
-                RETURNING id, content, task_id, user_id, created_at
-            )
-            SELECT 
-                ic.id, 
-                ic.content, 
-                ic.created_at, 
-                u.username as author_name
-            FROM inserted_comment ic
-            JOIN users u ON ic.user_id = u.id;
-        `;
-
-        const result = await pool.query(newCommentQuery, [taskId, userId, content]);
-        const newComment = result.rows[0];
-
-        // --- Real-time Logic ---
-        // 1. Get the project_id this task belongs to
-        const taskProjectResult = await pool.query('SELECT project_id FROM tasks WHERE id = $1', [taskId]);
-        if (taskProjectResult.rows.length === 0) {
-            // This case is unlikely but good for robustness
-            return res.status(404).json({ msg: "Task not found to associate the comment with." });
-        }
-        const projectId = taskProjectResult.rows[0].project_id;
-
-        // 2. Emit a WebSocket event to the specific project's "room"
-        // This sends the new comment data to all connected clients in that project
-        io.to(`project-${projectId}`).emit('new_comment', {
-            taskId: parseInt(taskId, 10),
-            comment: newComment
-        });
-
-        // Respond to the original request with the new comment data
-        res.status(201).json(newComment);
+        // Real-time update for the comment section
+        io.to(`project-${projectId}`).emit('new_comment', { taskId: parseInt(taskId, 10), comment: commentForSocket });
+        res.status(201).json(commentForSocket);
 
     } catch (err) {
-        console.error('Error adding comment:', err.message);
+        console.error(err.message);
         res.status(500).send('Server Error');
     }
 };

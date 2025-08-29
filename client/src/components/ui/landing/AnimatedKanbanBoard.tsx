@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, useAnimationControls } from 'framer-motion';
+import { motion, useAnimationControls, MotionStyle } from 'framer-motion';
 import { useEffect } from 'react';
 import { Bot, Check, User } from 'lucide-react';
 
@@ -31,31 +31,19 @@ export default function AnimatedKanbanBoard() {
     
     // Define the animation sequence
     const sequence = async () => {
-        // Start state
         await controls.start('start');
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Move to In Progress
         await controls.start('inProgress');
         await new Promise(resolve => setTimeout(resolve, 1500));
-
-        // Collaboration (Assign user)
         await controls.start('assign');
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Move to Done
         await controls.start('done');
         await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // AI generation
         await controls.start('aiGenerate');
         await new Promise(resolve => setTimeout(resolve, 2500));
-
-        // Loop the sequence
         sequence(); 
     };
 
-    // Trigger the animation sequence on component mount
     useEffect(() => {
         sequence();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,40 +63,34 @@ export default function AnimatedKanbanBoard() {
             animate={controls}
             variants={variants}
             initial={{ 
-                '--col1-opacity': 0, 
-                '--col2-opacity': 0,
-                '--col3-opacity': 0,
-                '--assign-opacity': 0,
-                '--assign-scale': 0,
-                '--done-opacity': 0,
-                '--done-scale': 0.5,
-                '--ai-opacity': 0,
-                '--task2-opacity': 0,
-                '--task3-opacity': 0,
+                '--col1-opacity': 0, '--col2-opacity': 0, '--col3-opacity': 0,
+                '--assign-opacity': 0, '--assign-scale': 0,
+                '--done-opacity': 0, '--done-scale': 0.5,
+                '--ai-opacity': 0, '--task2-opacity': 0, '--task3-opacity': 0,
             }}
             className="w-full h-full p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-black rounded-xl shadow-2xl border"
         >
             <div className="grid grid-cols-3 gap-4 h-full">
                 {/* Column 1: To Do */}
                 <Column title="To Do">
-                    <motion.div style={{ opacity: 'var(--col1-opacity)' as any }}>
+                    <motion.div style={{ opacity: 'var(--col1-opacity)' } as MotionStyle}>
                         <AnimatedCard layoutId="task1">
                             <p className="font-medium text-sm">Design landing page</p>
                         </AnimatedCard>
                     </motion.div>
-                    <motion.div style={{ opacity: 'var(--task2-opacity)' as any }} transition={{ delay: 0.2 }}>
+                    <motion.div style={{ opacity: 'var(--task2-opacity)' } as MotionStyle} transition={{ delay: 0.2 }}>
                         <AnimatedCard layoutId="task2">
                              <p className="font-medium text-sm">Implement user auth</p>
                         </AnimatedCard>
                     </motion.div>
-                    <motion.div style={{ opacity: 'var(--task3-opacity)' as any }} transition={{ delay: 0.4 }}>
+                    <motion.div style={{ opacity: 'var(--task3-opacity)' } as MotionStyle} transition={{ delay: 0.4 }}>
                         <AnimatedCard layoutId="task3">
                              <p className="font-medium text-sm">Deploy to production</p>
                         </AnimatedCard>
                     </motion.div>
                     <motion.div 
                         className="flex items-center gap-2 p-3 text-sm text-purple-600 dark:text-purple-400"
-                        style={{ opacity: 'var(--ai-opacity)' as any }}
+                        style={{ opacity: 'var(--ai-opacity)' } as MotionStyle}
                         initial={{ y: 10 }}
                         transition={{ duration: 0.5 }}
                     >
@@ -118,12 +100,12 @@ export default function AnimatedKanbanBoard() {
                 
                 {/* Column 2: In Progress */}
                 <Column title="In Progress">
-                    <motion.div style={{ opacity: 'var(--col2-opacity)' as any }}>
+                    <motion.div style={{ opacity: 'var(--col2-opacity)' } as MotionStyle}>
                         <AnimatedCard layoutId="task1">
                             <p className="font-medium text-sm">Design landing page</p>
                             <motion.div 
                                 className="flex items-center gap-2 mt-2"
-                                style={{ opacity: 'var(--assign-opacity)' as any, scale: 'var(--assign-scale)' as any }}
+                                style={{ opacity: 'var(--assign-opacity)', scale: 'var(--assign-scale)' } as MotionStyle}
                                 transition={{ delay: 0.3 }}
                             >
                                 <div className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-500 text-white">
@@ -137,12 +119,12 @@ export default function AnimatedKanbanBoard() {
 
                 {/* Column 3: Done */}
                 <Column title="Done">
-                    <motion.div style={{ opacity: 'var(--col3-opacity)' as any }}>
+                    <motion.div style={{ opacity: 'var(--col3-opacity)' } as MotionStyle}>
                         <AnimatedCard layoutId="task1" className="bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500/50">
                             <p className="font-medium text-sm text-emerald-800 dark:text-emerald-300">Design landing page</p>
                             <motion.div 
                                 className="flex items-center gap-2 mt-2 text-emerald-600 dark:text-emerald-400"
-                                style={{ opacity: 'var(--done-opacity)' as any, scale: 'var(--done-scale)' as any }}
+                                style={{ opacity: 'var(--done-opacity)', scale: 'var(--done-scale)' } as MotionStyle}
                                 transition={{ delay: 0.3 }}
                             >
                                 <Check className="w-4 h-4" />
