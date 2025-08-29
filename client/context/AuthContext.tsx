@@ -11,13 +11,13 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  isAuthenticated: boolean;
+  isAuthenticated: boolean; // <<< ADD THIS LINE
   login: (token: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
+    
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,32 +27,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const decoded: { user: User; exp: number } = jwtDecode(token);
-        if (Date.now() >= decoded.exp * 1000) {
-          localStorage.removeItem('token');
-          setUser(null);
-        } else {
-          setUser(decoded.user);
-        }
+        const decoded: { user: User } = jwtDecode(token);
+        setUser(decoded.user);
       } catch (error) {
         console.error("Invalid token:", error);
         localStorage.removeItem('token');
-        setUser(null);
       }
     }
     setLoading(false);
   }, []);
 
   const login = async (token: string) => {
+    localStorage.setItem('token', token);
     try {
-      localStorage.setItem('token', token);
       const decoded: { user: User } = jwtDecode(token);
       setUser(decoded.user);
-      // *** FIX: Handle the redirect here to ensure user state is set first ***
       router.push('/dashboard');
     } catch (error) {
         console.error("Failed to decode token on login:", error);
-        logout(); // Clear state if login fails
+        logout();
     }
   };
 
@@ -62,11 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   };
 
-  const isAuthenticated = !!user;
+  const isAuthenticated = !!user; // <<< ADD THIS LINE
 
   const value = {
     user,
-    isAuthenticated,
+    isAuthenticated, // <<< PASS THE VALUE HERE
     login,
     logout,
   };

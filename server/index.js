@@ -3,71 +3,75 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 require('dotenv').config();
-const pool = require('./config/db');
-const passport = require('passport'); // <<< ADD THIS
+const passport = require('passport');
 
 // --- Create server and app instances ---
 const app = express();
 const server = http.createServer(app);
 
-// --- 1. Initialize Socket.io with proper CORS configuration ---
-const io = new Server(server, {
-    cors: {
-        origin: process.env.CLIENT_URL || "http://localhost:3000", // Fallback for local dev
-        methods: ["GET", "POST"]
+// --- FIX: Whitelist your frontend's production and development URLs ---
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://project-manager-r2wc.vercel.app'
+];
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
     }
+};
+
+// --- 1. Initialize Socket.io with the same CORS options ---
+const io = new Server(server, {
+    cors: corsOptions
 });
 
-// --- 2. Export the 'io' instance IMMEDIATELY ---
-// This is the critical fix. It makes 'io' available for other files to import.
+// --- 2. Export 'io' for other files ---
 module.exports.io = io;
 
-// --- 3. Import API routes AFTER 'io' is exported ---
-// Now, when these routes (and their controllers) are loaded, they can successfully import 'io'.
+// --- 3. Import ALL routes & Passport config ---
 const userRoutes = require('./routes/users');
 const projectRoutes = require('./routes/projects');
 const taskRoutes = require('./routes/tasks');
 const aiRoutes = require('./routes/ai');
-const authRoutes = require('./routes/auth'); // <<< ADD THIS
-const notificationRoutes = require('./routes/notifications'); // <<< ADD THIS
-require('./config/passport'); // <<< ADD THIS to run the passport config code
+const authRoutes = require('./routes/auth');
+const notificationRoutes = require('./routes/notifications');
+require('./config/passport');
 
 // --- Middleware ---
-app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:3000" }));
+app.use(cors(corsOptions)); // <<< Use the detailed CORS options
 app.use(express.json());
-app.use(passport.initialize()); // <<< ADD THIS to initialize passport
+app.use(passport.initialize());
 
 // --- 4. Register API Routes ---
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/ai', aiRoutes);
-app.use('/api/auth', authRoutes); // <<< ADD THIS to use the new auth routes
-app.use('/api/notifications', notificationRoutes); // <<< ADD THIS
+app.use('/api/auth', authRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // --- Socket.io Connection Logic ---
 io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.id}`);
-  // Get the user ID from the handshake query (the frontend will need to send this)
-  const { userId } = socket.handshake.query;
-  if (userId) {
-    // Each user joins a room named after their own ID
-    // This allows us to send notifications directly to a specific user
-    socket.join(`user-${userId}`);
-    console.log(`User ${socket.id} (User ID: ${userId}) connected and joined their room.`);
-  }
-    socket.on('join_project', (projectId) => {
-        socket.join(projectId);
-        console.log(`User ${socket.id} joined project room: ${projectId}`);
-    });
+    const { userId } = socket.handshake.query;
+    if (userId) {
+        socket.join(`user-${userId}`);
+        console.log(`User ${socket.id} (User ID: ${userId}) connected and joined their room.`);
+    }
 
-    socket.on('leave_project', (projectId) => {
-        socket.leave(projectId);
-        console.log(`User ${socket.id} left project room: ${projectId}`);
+    socket.on('join_project', (projectId) => {
+        socket.join(`project-${projectId}`);
+        console.log(`User ${socket.id} joined project room: project-${projectId}`);
     });
 
     socket.on('disconnect', () => {
-        console.log(`User disconnected: ${socket.id}`);
+        console.log(`User ${socket.id} disconnected`);
     });
 });
 
