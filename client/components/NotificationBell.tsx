@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
 import { Bell } from 'lucide-react';
@@ -10,7 +10,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 
-// --- Type Definitions ---
 interface Notification {
     id: number;
     content: string;
@@ -29,10 +28,20 @@ export default function NotificationBell() {
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
-    useEffect(() => {
-        if (!isAuthenticated || !user) return;
+    // *** FIX: Memoize the socket connection to prevent re-renders from creating multiple connections ***
+    const socket = useMemo(() => {
+        if (isAuthenticated && user) {
+            return io(process.env.NEXT_PUBLIC_API_URL!, {
+                query: { userId: user.id },
+            });
+        }
+        return null;
+    }, [isAuthenticated, user]);
 
-        // --- Fetch initial notifications ---
+
+    useEffect(() => {
+        if (!isAuthenticated || !user || !socket) return;
+
         const fetchNotifications = async () => {
             try {
                 const token = localStorage.getItem('token');
@@ -46,42 +55,22 @@ export default function NotificationBell() {
         };
         fetchNotifications();
         
-        // --- Set up WebSocket for real-time updates ---
-        const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL!, {
-            query: { userId: user.id }, // Pass user ID for server to join the correct room
-        });
-
         socket.on('new_notification', (newNotification: Notification) => {
-            // Add the new notification to the top of the list and show a browser notification
             setNotifications(prev => [newNotification, ...prev]);
-            
-            if (Notification.permission === 'granted') {
-                new Notification('KanbanFlow', {
-                    body: newNotification.content,
-                    icon: '/favicon.ico', // Optional: Add an icon
-                });
-            }
         });
 
         return () => {
+            socket.off('new_notification');
             socket.disconnect();
         };
 
-    }, [isAuthenticated, user]);
-    
-    // --- Request browser notification permission ---
-    useEffect(() => {
-        if (typeof window !== "undefined" && "Notification" in window) {
-            if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-                Notification.requestPermission();
-            }
-        }
-    }, []);
+    }, [isAuthenticated, user, socket]);
 
+    // ... (rest of the component remains the same)
+    // ... (handleOpenChange, timeSince, JSX)
     const handleOpenChange = async (open: boolean) => {
         setIsOpen(open);
         if (!open && unreadCount > 0) {
-            // When the popover is closed, mark all as read
             try {
                 const token = localStorage.getItem('token');
                 await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read`, {}, {
@@ -94,7 +83,6 @@ export default function NotificationBell() {
         }
     };
     
-    // Helper to format the time since a notification was created
     const timeSince = (date: string) => {
         const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
         let interval = seconds / 31536000;

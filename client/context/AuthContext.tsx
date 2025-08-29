@@ -2,7 +2,6 @@
 
 import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
 interface User {
@@ -13,7 +12,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (token: string) => Promise<void>; // <<< Revert to Promise<void>
+  login: (token: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -29,7 +28,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       try {
         const decoded: { user: User; exp: number } = jwtDecode(token);
-        // Check if token is expired
         if (Date.now() >= decoded.exp * 1000) {
           localStorage.removeItem('token');
           setUser(null);
@@ -45,14 +43,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-   const login = async (token: string) => { // <<< Revert to async
+  const login = async (token: string) => {
     try {
       localStorage.setItem('token', token);
       const decoded: { user: User } = jwtDecode(token);
       setUser(decoded.user);
+      // *** FIX: Handle the redirect here to ensure user state is set first ***
+      router.push('/dashboard');
     } catch (error) {
         console.error("Failed to decode token on login:", error);
-        logout();
+        logout(); // Clear state if login fails
     }
   };
 
