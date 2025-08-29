@@ -3,7 +3,6 @@ import FeatureShowcase from "@/components/ui/landing/FeatureShowcase";
 import FinalCTA from "@/components/ui/landing/FinalCTA";
 import Footer from "@/components/ui/landing/Footer";
 import HeroSection from "@/components/ui/landing/HeroSection";
-import LandingNavbar from "@/components/ui/landing/LandingNavbar";
 import PricingSection from "@/components/ui/landing/PricingSection";
 import SocialProof from "@/components/ui/landing/SocialProof";
 
@@ -22,4 +21,4 @@ export default function LandingPage() {
       <Footer />
     </div>
   );
-}
+}   

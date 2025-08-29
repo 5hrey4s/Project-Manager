@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import AnimatedKanbanBoard from "./AnimatedKanbanBoard"; // <<< Import the new component
 
 export default function HeroSection() {
     return (
@@ -24,9 +25,9 @@ export default function HeroSection() {
                     </div>
                 </div>
 
-                {/* Placeholder for our future animated visual */}
-                <div className="mt-16 mx-auto w-full max-w-5xl h-96 rounded-xl bg-muted border-dashed border-2 flex items-center justify-center">
-                    <p className="text-muted-foreground">[Animated Product Visual Here]</p>
+                {/* --- Replace the placeholder div with our new animated component --- */}
+                <div className="mt-16 mx-auto w-full max-w-5xl h-96">
+                    <AnimatedKanbanBoard />
                 </div>
             </div>
         </section>
