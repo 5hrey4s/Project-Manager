@@ -10,6 +10,7 @@ export default function AuthCallbackPage() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
+            debugger; // <-- This is our breakpoint
         const handleLogin = async () => {
             const token = searchParams.get('token');
 
