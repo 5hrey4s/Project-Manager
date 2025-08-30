@@ -10,14 +10,20 @@ export default function AuthCallbackPage() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
-        const token = searchParams.get('token');
+        const handleLogin = async () => {
+            const token = searchParams.get('token');
 
-        if (token) {
-            // *** FIX: Simply call login. The context now handles the redirect. ***
-            login(token);
-        } else {
-            router.push('/login?error=auth_failed');
-        }
+            if (token) {
+                // By awaiting the login promise, we ensure it fully completes
+                // before this function moves on.
+                await login(token);
+                // Now, the user state is set and the redirect inside login() has executed.
+            } else {
+                router.push('/login?error=auth_failed');
+            }
+        };
+
+        handleLogin();
     }, [login, router, searchParams]);
 
     return (
