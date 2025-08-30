@@ -42,6 +42,7 @@ export default function NotificationBell() {
         const fetchNotifications = async () => {
             try {
                 const token = localStorage.getItem('token');
+                console.log(token)
                 const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
                     headers: { 'x-auth-token': token },
                 });
