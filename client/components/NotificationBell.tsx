@@ -3,113 +3,107 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
+import { useAuth } from '../context/AuthContext';
 import { Bell } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
-import { useAuth } from '../context/AuthContext';
 
-// --- Type Definitions ---
 interface Notification {
-    id: number;
-    content: string;
-    is_read: boolean;
-    created_at: string;
-    sender_username: string;
-    sender_avatar: string | null;
-    project_id: number;
-    task_id: number;
+  id: number;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+  sender_username: string;
+  sender_avatar: string | null;
+  project_id: number;
+  task_id: number;
 }
 
 export default function NotificationBell() {
-    const { user, isAuthenticated } = useAuth();
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [isOpen, setIsOpen] = useState(false);
-    
-    // *** FIX: Use useRef to hold the socket instance. This prevents it from being recreated on every render. ***
-    const socketRef = useRef<Socket | null>(null);
+  const { user, isAuthenticated } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
 
-    const unreadCount = notifications.filter(n => !n.is_read).length;
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
-    useEffect(() => {
-        // Only run this effect if the user is authenticated
-        if (!isAuthenticated || !user) {
-            return;
+  useEffect(() => {
+    // *** FIX: Effect now correctly handles setup and teardown based on authentication status ***
+    if (isAuthenticated && user?.id) {
+      // --- Fetch initial notifications ---
+      const fetchNotifications = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
+            headers: { 'x-auth-token': token },
+          });
+          setNotifications(res.data);
+        } catch (error) {
+          console.error("Failed to fetch notifications", error);
         }
+      };
+      fetchNotifications();
 
-        // --- Fetch initial notifications ---
-        const fetchNotifications = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                console.log(token)
-                const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
-                    headers: { 'x-auth-token': token },
-                });
-                setNotifications(res.data);
-            } catch (error) {
-                console.error("Failed to fetch notifications", error);
-            }
-        };
-        fetchNotifications();
-        
-        // *** FIX: Establish the socket connection only once and store it in the ref. ***
-        if (!socketRef.current) {
-            socketRef.current = io(process.env.NEXT_PUBLIC_API_URL!, {
-                query: { userId: user.id },
-            });
+      // --- Establish socket connection ---
+      // This check is redundant with the cleanup but provides extra safety
+      if (!socketRef.current) {
+        socketRef.current = io(process.env.NEXT_PUBLIC_API_URL!, {
+          query: { userId: user.id },
+        });
 
-            socketRef.current.on('connect', () => {
-                console.log('Socket connected:', socketRef.current?.id);
-            });
+        socketRef.current.on('connect', () => {
+          console.log('Socket connected:', socketRef.current?.id);
+        });
 
-            socketRef.current.on('new_notification', (newNotification: Notification) => {
-                // Use functional update to avoid stale state issues
-                setNotifications(prev => [newNotification, ...prev]);
-            });
+        socketRef.current.on('new_notification', (newNotification: Notification) => {
+          setNotifications(prev => [newNotification, ...prev]);
+        });
+      }
+      
+      // --- Cleanup function ---
+      return () => {
+        if (socketRef.current) {
+          console.log('Disconnecting socket...');
+          socketRef.current.disconnect();
+          socketRef.current = null;
         }
+      };
+    }
+  }, [isAuthenticated, user?.id]); // Depend on user.id (a stable primitive) instead of the user object
 
-        // --- Cleanup function: This runs when the component unmounts ---
-        return () => {
-            if (socketRef.current) {
-                console.log('Disconnecting socket...');
-                socketRef.current.disconnect();
-                socketRef.current = null;
-            }
-        };
+  const handleOpenChange = async (open: boolean) => {
+    setIsOpen(open);
+    if (!open && unreadCount > 0) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read`, {}, {
+          headers: { 'x-auth-token': token }
+        });
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      } catch (error) {
+        console.error("Failed to mark notifications as read", error);
+      }
+    }
+  };
 
-    }, [isAuthenticated, user]);
+  const timeSince = (date: string) => {
+    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+    if (seconds < 5) return "just now";
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + "y";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + "m";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + "d";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + "h";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + "min";
+    return Math.floor(seconds) + "s";
+  };
 
-    const handleOpenChange = async (open: boolean) => {
-        setIsOpen(open);
-        if (!open && unreadCount > 0) {
-            try {
-                const token = localStorage.getItem('token');
-                await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read`, {}, {
-                     headers: { 'x-auth-token': token } 
-                });
-                setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-            } catch (error) {
-                console.error("Failed to mark notifications as read", error);
-            }
-        }
-    };
-    
-    const timeSince = (date: string) => {
-        const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
-        if (seconds < 5) return "just now";
-        let interval = seconds / 31536000;
-        if (interval > 1) return Math.floor(interval) + "y";
-        interval = seconds / 2592000;
-        if (interval > 1) return Math.floor(interval) + "m";
-        interval = seconds / 86400;
-        if (interval > 1) return Math.floor(interval) + "d";
-        interval = seconds / 3600;
-        if (interval > 1) return Math.floor(interval) + "h";
-        interval = seconds / 60;
-        if (interval > 1) return Math.floor(interval) + "min";
-        return Math.floor(seconds) + "s";
-    };
 
     return (
         <Popover open={isOpen} onOpenChange={handleOpenChange}>

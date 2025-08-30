@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { createContext, useState, useContext, useEffect, ReactNode, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { jwtDecode } from 'jwt-decode';
 
@@ -11,13 +11,13 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  isAuthenticated: boolean; // <<< ADD THIS LINE
+  isAuthenticated: boolean;
   login: (token: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-    
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,11 +27,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const decoded: { user: User } = jwtDecode(token);
-        setUser(decoded.user);
+        const decoded: { user: User; exp: number } = jwtDecode(token);
+        if (Date.now() >= decoded.exp * 1000) {
+          localStorage.removeItem('token');
+          setUser(null);
+        } else {
+          setUser(decoded.user);
+        }
       } catch (error) {
         console.error("Invalid token:", error);
         localStorage.removeItem('token');
+        setUser(null);
       }
     }
     setLoading(false);
@@ -44,8 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(decoded.user);
       router.push('/dashboard');
     } catch (error) {
-        console.error("Failed to decode token on login:", error);
-        logout();
+      console.error("Failed to decode token on login:", error);
+      logout();
     }
   };
 
@@ -55,14 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   };
 
-  const isAuthenticated = !!user; // <<< ADD THIS LINE
-
-  const value = {
+  // *** FIX: Memoize the context value to prevent unnecessary re-renders of consuming components ***
+  const value = useMemo(() => ({
     user,
-    isAuthenticated, // <<< PASS THE VALUE HERE
+    isAuthenticated: !!user,
     login,
     logout,
-  };
+  }), [user]); // Only recreate the value object when the user state itself changes
 
   return (
     <AuthContext.Provider value={value}>
