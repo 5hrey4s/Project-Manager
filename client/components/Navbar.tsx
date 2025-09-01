@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
-import { Button } from './ui/button';
 import NotificationBell from './NotificationBell';
+import { Button } from '@/components/ui/button';
 
 export default function Navbar() {
     const { user, logout, isAuthenticated } = useAuth();
