@@ -45,19 +45,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('token', token);
       const decoded: { user: User } = jwtDecode(token);
       setUser(decoded.user);
-      // *** THE FIX: The redirect is REMOVED from here. ***
+      
+      // *** THE FIX: Force a full page reload to the dashboard. ***
+      // This is more reliable than router.push() during the auth callback.
+      window.location.href = '/dashboard';
+
     } catch (error) {
       console.error("Failed to process token on login:", error);
-      // Ensure state is clean if login fails
-      localStorage.removeItem('token');
-      setUser(null);
-      router.push('/login');
+      logout();
     }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
+    // Using router.push here is fine because it's a standard user action.
     router.push('/login');
   };
 
@@ -66,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: !!user,
     login,
     logout,
-  }), [user, router]); // router is added as a dependency for stability
+  }), [user]);
 
   return (
     <AuthContext.Provider value={value}>
