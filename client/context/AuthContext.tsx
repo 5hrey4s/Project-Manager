@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(decoded.user);
       
       // *** THE FIX: Force a full page reload to the dashboard. ***
-      // This is more reliable than router.push() during the auth callback.
+      // This is the most reliable way to handle the redirect after authentication.
       window.location.href = '/dashboard';
 
     } catch (error) {
@@ -59,7 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
-    // Using router.push here is fine because it's a standard user action.
     router.push('/login');
   };
 
