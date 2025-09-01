@@ -30,28 +30,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const decoded: { user: User; exp: number } = jwtDecode(token);
         if (Date.now() >= decoded.exp * 1000) {
           localStorage.removeItem('token');
-          setUser(null);
         } else {
           setUser(decoded.user);
         }
       } catch (error) {
-        console.error("Invalid token:", error);
         localStorage.removeItem('token');
-        setUser(null);
       }
     }
     setLoading(false);
   }, []);
 
   const login = async (token: string) => {
-    localStorage.setItem('token', token);
     try {
+      localStorage.setItem('token', token);
       const decoded: { user: User } = jwtDecode(token);
       setUser(decoded.user);
-      router.push('/dashboard');
+      // *** THE FIX: The redirect is REMOVED from here. ***
     } catch (error) {
-      console.error("Failed to decode token on login:", error);
-      logout();
+      console.error("Failed to process token on login:", error);
+      // Ensure state is clean if login fails
+      localStorage.removeItem('token');
+      setUser(null);
+      router.push('/login');
     }
   };
 
@@ -61,13 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   };
 
-  // *** FIX: Memoize the context value to prevent unnecessary re-renders of consuming components ***
   const value = useMemo(() => ({
     user,
     isAuthenticated: !!user,
     login,
     logout,
-  }), [user]); // Only recreate the value object when the user state itself changes
+  }), [user, router]); // router is added as a dependency for stability
 
   return (
     <AuthContext.Provider value={value}>
