@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
-import NotificationBell from './NotificationBell';
+import NotificationBell from './NotificationBell'; // <<< Import the new component
 import { Button } from '@/components/ui/button';
 
 export default function Navbar() {
@@ -18,13 +18,7 @@ export default function Navbar() {
                     <div className="flex items-center space-x-4">
                         {isAuthenticated && user ? (
                             <>
-                                {/* --- THE FIX ---
-                                  By checking for `user.id`, we ensure this component does not
-                                  mount during the split-second transition of the login redirect,
-                                  which prevents the race condition.
-                                */}
-                                {user.id && <NotificationBell />}
-                                
+                                <NotificationBell /> {/* <<< Add the component here */}
                                 <span className="text-gray-700">Hello, {user.username}</span>
                                 <Button variant="ghost" onClick={logout}>Logout</Button>
                             </>
