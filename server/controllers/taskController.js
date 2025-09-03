@@ -133,7 +133,7 @@ exports.getTaskDetails = async (req, res) => {
             pool.query(`
         SELECT c.id, c.content, c.created_at, u.username as author_name 
         FROM comments c 
-        JOIN users u ON c.author_id = u.id 
+        JOIN users u ON c.user_id = u.id 
         WHERE c.task_id = $1 
         ORDER BY c.created_at ASC
       `, [taskId]),
