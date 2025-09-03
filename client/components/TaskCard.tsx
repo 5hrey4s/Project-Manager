@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useDraggable } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
 
-// Define the types needed for this component
+// --- Type Definitions ---
 interface Member {
   id: number
   username: string
@@ -23,7 +23,7 @@ interface TaskCardProps {
   task: Task
   members: Member[]
   onAssign: (taskId: number, assigneeId: number | null) => void
-  onCardClick: (taskId: number) => void // <<< ADD THIS PROP
+  onCardClick: (taskId: number) => void
 }
 
 export default function TaskCard({ task, members, onAssign, onCardClick }: TaskCardProps) {
@@ -46,13 +46,22 @@ export default function TaskCard({ task, members, onAssign, onCardClick }: TaskC
     onAssign(task.id, newAssigneeId)
   }
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent the select dropdown from triggering the card click
+    if ((e.target as HTMLElement).closest('.radix-select-trigger')) {
+      e.stopPropagation();
+      return;
+    }
+    onCardClick(task.id)
+  }
+
   return (
     <Card
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      onClick={() => onCardClick(task.id)} // <<< ADD THIS ONCLICK HANDLER
+      onClick={handleCardClick}
       className={`p-4 bg-background shadow-sm rounded-lg border hover:shadow-md cursor-pointer transition-shadow ${
         isDragging ? "opacity-50" : "opacity-100"
       }`}
@@ -61,8 +70,8 @@ export default function TaskCard({ task, members, onAssign, onCardClick }: TaskC
         <div className="flex flex-col gap-3">
           <p className="font-medium text-sm text-foreground leading-snug">{task.title}</p>
           <div className="flex items-center justify-between">
-            <Select onValueChange={handleAssignmentChange} defaultValue={assignee?.id.toString()}>
-              <SelectTrigger className="w-auto h-auto text-xs bg-transparent border-none focus:ring-0 p-0">
+            <Select onValueChange={handleAssignmentChange} defaultValue={assignee?.id.toString() || 'unassigned'}>
+              <SelectTrigger className="radix-select-trigger w-auto h-auto text-xs bg-transparent border-none focus:ring-0 p-0">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent>
@@ -86,9 +95,6 @@ export default function TaskCard({ task, members, onAssign, onCardClick }: TaskC
 
             {assignee && (
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs px-2 py-0.5">
-                  {assignee.username}
-                </Badge>
                 <Avatar className="w-6 h-6">
                   <AvatarFallback className="text-xs bg-primary text-primary-foreground">
                     {assignee.username.charAt(0).toUpperCase()}
