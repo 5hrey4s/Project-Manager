@@ -85,13 +85,12 @@ export default function ProjectPage() {
             <ProjectHeader project={project} onOpenAiModal={() => setIsAiModalOpen(true)} />
             
             <main className="mt-8">
-                <KanbanBoard 
-                    tasks={tasks}
-                    members={members}
-                    setTasks={setTasks}
-                    onTaskClick={handleOpenTaskModal}
-                    onAddTask={handleOpenCreateModal}
-                />
+                       <KanbanBoard
+          projectId={projectId}
+          members={members}
+          onTaskClick={handleOpenTaskModal}
+        />
+
             </main>
             
             {isAiModalOpen && (
