@@ -161,9 +161,8 @@ exports.addComment = async (req, res) => {
         const { content } = req.body;
         const userId = req.user.id;
 
-        // *** THE MAIN FIX: Your comments table uses 'author_id', not 'user_id' ***
         const result = await pool.query(
-            'INSERT INTO comments (task_id, author_id, content) VALUES ($1, $2, $3) RETURNING *',
+            'INSERT INTO comments (task_id, user_id, content) VALUES ($1, $2, $3) RETURNING *',
             [taskId, userId, content]
         );
         const newCommentData = result.rows[0];
