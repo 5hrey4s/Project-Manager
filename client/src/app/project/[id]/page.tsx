@@ -18,18 +18,20 @@ export default function ProjectPage() {
     const params = useParams();
     const projectId = params.id as string;
     
-    // --- Custom hook for data fetching ---
-    const { project, tasks, members, loading, setTasks } = useProjectData(projectId);
+    // Custom hook for data fetching
+    const { project, members, loading, setTasks } = useProjectData(projectId);
 
-    // --- State for managing modals ---
+    // State for managing modals
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isAiModalOpen, setIsAiModalOpen] = useState(false);
     const [isCopilotOpen, setIsCopilotOpen] = useState(false);
-        const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [defaultColumn, setDefaultColumn] = useState<TaskStatus>("To Do");
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    
+    // The setter 'setDefaultColumn' is removed as it's not used.
+    const [defaultColumn] = useState<TaskStatus>("To Do");
 
-    // --- Real-time listeners for task creation and deletion ---
+    // Real-time listeners for task creation and deletion
     useEffect(() => {
         if (!projectId) return;
         const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL!);
@@ -49,17 +51,11 @@ export default function ProjectPage() {
         };
     }, [projectId, setTasks]);
 
-    const handleOpenCreateModal = (status: TaskStatus) => {
-        setDefaultColumn(status);
-        setIsCreateModalOpen(true);
-    };
-
     const handleCloseCreateModal = () => {
         setIsCreateModalOpen(false);
     };
 
-
-    // --- Modal Control Functions ---
+    // Modal Control Functions
     const handleOpenTaskModal = (taskId: number) => {
         setSelectedTaskId(taskId);
         setIsTaskModalOpen(true);
@@ -70,7 +66,7 @@ export default function ProjectPage() {
         setSelectedTaskId(null);
     };
 
-    // --- Callback for when a task is deleted inside the modal ---
+    // Callback for when a task is deleted inside the modal
     const handleTaskDeleted = (deletedTaskId: number) => {
         // Optimistically remove the task from the UI
         setTasks(currentTasks => currentTasks.filter(task => task.id !== deletedTaskId));
@@ -85,12 +81,11 @@ export default function ProjectPage() {
             <ProjectHeader project={project} onOpenAiModal={() => setIsAiModalOpen(true)} />
             
             <main className="mt-8">
-                       <KanbanBoard
-          projectId={projectId}
-          members={members}
-          onTaskClick={handleOpenTaskModal}
-        />
-
+                <KanbanBoard
+                    projectId={projectId}
+                    members={members}
+                    onTaskClick={handleOpenTaskModal}
+                />
             </main>
             
             {isAiModalOpen && (
@@ -100,17 +95,15 @@ export default function ProjectPage() {
                     setTasks={setTasks}
                 />
             )}
-               
-
             
             <TaskDetailsModal 
                 taskId={selectedTaskId}
                 isOpen={isTaskModalOpen}
                 onClose={handleCloseTaskModal}
                 projectId={parseInt(projectId, 10)}
-                onTaskDeleted={handleTaskDeleted} // <<< Pass the callback here
+                onTaskDeleted={handleTaskDeleted}
             />
-         <CreateTaskModal
+            <CreateTaskModal
                 isOpen={isCreateModalOpen}
                 onClose={handleCloseCreateModal}
                 projectId={parseInt(projectId, 10)}
