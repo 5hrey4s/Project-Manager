@@ -1,3 +1,5 @@
+//TaskDetailsModal.tsx.
+
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
@@ -97,13 +99,13 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
   const handleDeleteTask = async () => {
     if (!taskId) return;
     try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}`, { headers: { 'x-auth-token': token } });
-        toast.success("Task deleted successfully!");
-        onTaskDeleted(taskId); // Update the UI on the project page
-        onClose();
+      const token = localStorage.getItem('token');
+      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}`, { headers: { 'x-auth-token': token } });
+      toast.success("Task deleted successfully!");
+      onTaskDeleted(taskId); // Update the UI on the project page
+      onClose();
     } catch (error) {
-        toast.error(`Failed to delete task:${error}`);
+      toast.error(`Failed to delete task:${error}`);
     }
   };
 
@@ -128,10 +130,11 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
                   <div className="flex-grow overflow-y-auto pr-4">
                     <h3 className="font-semibold mb-2 text-lg">Description</h3>
                     <div className="text-muted-foreground mb-8 prose dark:prose-invert max-w-none">{taskDetails.description || 'No description provided.'}</div>
-                    
+
                     <h3 className="font-semibold mb-4 text-lg">Comments</h3>
                     <div className="space-y-6">
-                      {taskDetails.comments.map(comment => (
+                      {/* CHANGE: Added a fallback empty array to prevent crash if comments is undefined */}
+                      {(taskDetails.comments || []).map(comment => (
                         <div key={comment.id} className="flex items-start gap-3">
                           <Avatar className="w-9 h-9"><AvatarFallback>{comment.author_name.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
                           <div>
@@ -160,17 +163,18 @@ export default function TaskDetailsModal({ taskId, isOpen, onClose, projectId, o
                     <div className="flex items-center"><GripVertical className="w-4 h-4 mr-3 text-muted-foreground" /><span className="font-medium">Priority:</span><span className="ml-auto">{taskDetails.priority}</span></div>
                     <div className="flex items-center"><Calendar className="w-4 h-4 mr-3 text-muted-foreground" /><span className="font-medium">Due Date:</span><span className="ml-auto">{taskDetails.due_date ? new Date(taskDetails.due_date).toLocaleDateString() : 'None'}</span></div>
                   </div>
-                  
+
                   <div>
-                      <h4 className="font-semibold mb-3 flex items-center"><Tag className="w-4 h-4 mr-3 text-muted-foreground" />Labels</h4>
-                      <div className="flex flex-wrap gap-2">
-                          {taskDetails.labels.length > 0 ? taskDetails.labels.map(label => (<Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }}>{label.name}</Badge>)) : <p className="text-xs text-muted-foreground">No labels</p>}
-                      </div>
+                    <h4 className="font-semibold mb-3 flex items-center"><Tag className="w-4 h-4 mr-3 text-muted-foreground" />Labels</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {/* CHANGE: Added a fallback empty array to prevent crash if labels is undefined */}
+                      {(taskDetails.labels || []).length > 0 ? (taskDetails.labels || []).map(label => (<Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }}>{label.name}</Badge>)) : <p className="text-xs text-muted-foreground">No labels</p>}
+                    </div>
                   </div>
-                  
+
                   <div>
-                      <h4 className="font-semibold mb-3 flex items-center"><Paperclip className="w-4 h-4 mr-3 text-muted-foreground" />Attachments</h4>
-                      <p className="text-xs text-muted-foreground">No attachments yet</p>
+                    <h4 className="font-semibold mb-3 flex items-center"><Paperclip className="w-4 h-4 mr-3 text-muted-foreground" />Attachments</h4>
+                    <p className="text-xs text-muted-foreground">No attachments yet</p>
                   </div>
 
                   <div className="pt-6 border-t">
