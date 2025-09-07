@@ -34,23 +34,4 @@ router.delete('/:projectId', authMiddleware, projectController.deleteProject);
 router.post('/:projectId/invitations', authMiddleware, projectController.inviteProjectMember);
 
 
-// --- ADD THESE NEW ROUTES ---
-
-// @route   POST api/projects/invitations/:invitationId/accept
-// @desc    Accept a project invitation
-// @access  Private (Invited user only)
-router.post('/invitations/:invitationId/accept', authMiddleware, projectController.acceptInvitation);
-
-// @route   POST api/projects/invitations/:invitationId/decline
-// @desc    Decline a project invitation
-// @access  Private (Invited user only)
-router.post('/invitations/:invitationId/decline', authMiddleware, projectController.declineInvitation);
-
-// --- ADD THIS NEW ROUTE ---
-
-// @route   GET api/invitations
-// @desc    Get all pending invitations for the logged-in user
-// @access  Private
-router.get('/invitations', authMiddleware, projectController.getPendingInvitations);
-
 module.exports = router;

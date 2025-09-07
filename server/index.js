@@ -42,6 +42,7 @@ const taskRoutes = require('./routes/tasks');
 const aiRoutes = require('./routes/ai');
 const authRoutes = require('./routes/auth');
 const notificationRoutes = require('./routes/notifications');
+const invitationRoutes = require('./routes/invitations'); // <-- ADD THIS LINE
 require('./config/passport');
 
 // --- Middleware ---
@@ -56,6 +57,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/invitations', invitationRoutes); // <-- AND ADD THIS LINE
 
 // --- Socket.io Connection Logic ---
 io.on('connection', (socket) => {
