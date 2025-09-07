@@ -1,3 +1,4 @@
+// client/components/NotificationBell.tsx
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -9,33 +10,42 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
+import InvitationCard from './InvitationCard'; // Import the new InvitationCard component
 
+// Interface for regular notifications
 interface Notification {
   id: number;
   content: string;
   is_read: boolean;
   created_at: string;
   sender_username: string;
-  sender_avatar: string | null;
   project_id: number;
   task_id: number;
+}
+
+// Interface for project invitations
+interface Invitation {
+    id: number;
+    project_name: string;
+    inviter_name: string;
 }
 
 export default function NotificationBell() {
   const { user, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]); // State for invitations
   const [isOpen, setIsOpen] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const unreadCount = notifications.filter(n => !n.is_read).length + invitations.length;
 
   useEffect(() => {
-    // *** FIX: Effect now correctly handles setup and teardown based on authentication status ***
     if (isAuthenticated && user?.id) {
-      // --- Fetch initial notifications ---
+      const token = localStorage.getItem('token');
+      
+      // Fetch initial notifications
       const fetchNotifications = async () => {
         try {
-          const token = localStorage.getItem('token');
           const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
             headers: { 'x-auth-token': token },
           });
@@ -44,38 +54,47 @@ export default function NotificationBell() {
           console.error("Failed to fetch notifications", error);
         }
       };
+
+      // Fetch pending invitations
+      const fetchInvitations = async () => {
+          try {
+              const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/invitations`, {
+                  headers: { 'x-auth-token': token },
+              });
+              setInvitations(res.data);
+          } catch (error) {
+              console.error("Failed to fetch invitations", error);
+          }
+      };
+      
       fetchNotifications();
+      fetchInvitations();
 
-      // --- Establish socket connection ---
-      // This check is redundant with the cleanup but provides extra safety
+      // Socket connection logic
       if (!socketRef.current) {
-        socketRef.current = io(process.env.NEXT_PUBLIC_API_URL!, {
-          query: { userId: user.id },
-        });
-
-        socketRef.current.on('connect', () => {
-          console.log('Socket connected:', socketRef.current?.id);
-        });
-
+        socketRef.current = io(process.env.NEXT_PUBLIC_API_URL!, { query: { userId: user.id } });
         socketRef.current.on('new_notification', (newNotification: Notification) => {
           setNotifications(prev => [newNotification, ...prev]);
         });
       }
-      
-      // --- Cleanup function ---
+
       return () => {
         if (socketRef.current) {
-          console.log('Disconnecting socket...');
           socketRef.current.disconnect();
           socketRef.current = null;
         }
       };
     }
-  }, [isAuthenticated, user?.id]); // Depend on user.id (a stable primitive) instead of the user object
+  }, [isAuthenticated, user?.id]);
+
+  // Handler to remove an invitation from the UI after action
+  const handleInvitationAction = (invitationId: number) => {
+    setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+  };
 
   const handleOpenChange = async (open: boolean) => {
     setIsOpen(open);
-    if (!open && unreadCount > 0) {
+    if (!open && notifications.filter(n => !n.is_read).length > 0) {
       try {
         const token = localStorage.getItem('token');
         await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read`, {}, {
@@ -87,8 +106,8 @@ export default function NotificationBell() {
       }
     }
   };
-
-  const timeSince = (date: string) => {
+  
+    const timeSince = (date: string) => {
     const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
     if (seconds < 5) return "just now";
     let interval = seconds / 31536000;
@@ -105,51 +124,68 @@ export default function NotificationBell() {
   };
 
 
-    return (
-        <Popover open={isOpen} onOpenChange={handleOpenChange}>
-            <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
-                    {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4 w-4">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 items-center justify-center text-xs text-white">
-                                {unreadCount}
-                            </span>
-                        </span>
-                    )}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-0">
-                <div className="p-4 border-b">
-                    <h4 className="font-medium leading-none">Notifications</h4>
+  return (
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative">
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 flex h-4 w-4">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 items-center justify-center text-xs text-white">
+                {unreadCount}
+              </span>
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0">
+        <div className="p-4 border-b">
+          <h4 className="font-medium leading-none">Notifications</h4>
+        </div>
+        <ScrollArea className="h-96">
+            {/* Render Invitations First */}
+            {invitations.length > 0 && (
+                <div className="border-b">
+                    <h5 className="p-2 text-sm font-semibold bg-gray-50 dark:bg-gray-800">Project Invitations</h5>
+                    {invitations.map((inv) => (
+                        <InvitationCard 
+                            key={`invite-${inv.id}`} 
+                            invitation={inv} 
+                            onAction={handleInvitationAction} 
+                        />
+                    ))}
                 </div>
-                <ScrollArea className="h-96">
-                    {notifications.length > 0 ? (
-                        notifications.map((notif) => (
-                            <Link 
-                                href={notif.task_id ? `/project/${notif.project_id}?taskId=${notif.task_id}` : `/project/${notif.project_id}`}
-                                key={notif.id}
-                                className="block"
-                                onClick={() => setIsOpen(false)}
-                            >
-                                <div className={`p-4 border-b hover:bg-muted ${!notif.is_read ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                                    <p className="text-sm">
-                                        <strong>{notif.sender_username || 'System'}</strong> {notif.content}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        {timeSince(notif.created_at)} ago
-                                    </p>
-                                </div>
-                            </Link>
-                        ))
-                    ) : (
-                        <div className="p-8 text-center text-sm text-muted-foreground">
-                            You have no new notifications.
+            )}
+
+            {/* Existing Notifications */}
+            {notifications.length > 0 ? (
+                notifications.map((notif) => (
+                    <Link
+                        href={notif.task_id ? `/project/${notif.project_id}?taskId=${notif.task_id}` : `/project/${notif.project_id}`}
+                        key={notif.id}
+                        className="block"
+                        onClick={() => setIsOpen(false)}
+                    >
+                        <div className={`p-4 border-b hover:bg-muted ${!notif.is_read ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                          <p className="text-sm">
+                            <strong>{notif.sender_username || 'System'}</strong> {notif.content}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {timeSince(notif.created_at)} ago
+                          </p>
                         </div>
-                    )}
-                </ScrollArea>
-            </PopoverContent>
-        </Popover>
-    );
+                    </Link>
+                ))
+            ) : (
+                invitations.length === 0 && ( // Only show if no invitations either
+                    <div className="p-8 text-center text-sm text-muted-foreground">
+                        You have no new notifications.
+                    </div>
+                )
+            )}
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
 }

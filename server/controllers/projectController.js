@@ -116,70 +116,198 @@ exports.getProjectMembers = async (req, res) => {
     }
 };
 
-exports.addProjectMember = async (req, res) => {
+exports.inviteProjectMember = async (req, res) => {
     try {
         const { projectId } = req.params;
-        const { email } = req.body;
+        const { email: inviteeEmail } = req.body;
         const inviterId = parseInt(req.user.id, 10);
 
-        // --- (Code to find user and check permissions remains the same) ---
-        const userToInviteResult = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
-        if (userToInviteResult.rows.length === 0) {
-            return res.status(404).json({ msg: 'User with that email does not exist.' });
-        }
-        const userToInviteId = userToInviteResult.rows[0].id;
-
+        // 1. Get Project and Invitee details
         const projectResult = await pool.query("SELECT name, owner_id FROM projects WHERE id = $1", [projectId]);
         if (projectResult.rows.length === 0) {
             return res.status(404).json({ msg: 'Project not found.' });
         }
         const { name: projectName, owner_id: ownerId } = projectResult.rows[0];
 
+        const inviteeResult = await pool.query("SELECT id FROM users WHERE email = $1", [inviteeEmail]);
+        if (inviteeResult.rows.length === 0) {
+            return res.status(404).json({ msg: 'User with that email does not exist.' });
+        }
+        const inviteeId = inviteeResult.rows[0].id;
+
+        // 2. Authorization and Validation Checks
         if (ownerId !== inviterId) {
             return res.status(403).json({ msg: 'Forbidden: Only the project owner can invite members.' });
         }
+        if (inviteeId === inviterId) {
+            return res.status(400).json({ msg: 'You cannot invite yourself to a project.' });
+        }
 
-        // --- Step 1: Add user to the project (This part is succeeding) ---
-        await pool.query(
-            "INSERT INTO project_members (project_id, user_id) VALUES ($1, $2)",
-            [projectId, userToInviteId]
+        // Check if the user is already a member
+        const memberCheck = await pool.query(
+            "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
+            [projectId, inviteeId]
+        );
+        if (memberCheck.rows.length > 0) {
+            return res.status(400).json({ msg: 'This user is already a member of the project.' });
+        }
+
+        // 3. Create a new invitation in the database
+        const newInvitation = await pool.query(
+            `INSERT INTO project_invitations (project_id, inviter_id, invitee_email)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+            [projectId, inviterId, inviteeEmail]
         );
 
-        // --- Step 2: Create a notification (This part is likely failing) ---
+        // 4. Send a notification to the invited user
         try {
-            console.log(`Attempting to create notification for user ${userToInviteId}`);
-            if (userToInviteId !== inviterId) {
-                await createNotification({
-                    recipient_id: userToInviteId,
-                    sender_id: inviterId,
-                    type: 'project_invitation',
-                    content: `invited you to join the project "${projectName}"`,
-                    project_id: parseInt(projectId, 10),
-                    task_id: null
-                });
-                console.log("Notification created successfully.");
-            }
+            await createNotification({
+                recipient_id: inviteeId,
+                sender_id: inviterId,
+                type: 'project_invitation',
+                content: `invited you to join the project "${projectName}"`,
+                project_id: parseInt(projectId, 10),
+                task_id: null
+            });
         } catch (notificationError) {
-            // --- FIX: Catch notification-specific errors ---
             console.error("--- FAILED TO CREATE NOTIFICATION ---");
             console.error(notificationError.message);
-            // We don't send an error response here because the main action (inviting) was successful.
-            // The error is logged for debugging, but the user gets a success message.
         }
 
-        // --- Step 3: Send success response to the frontend ---
-        res.status(201).json({ msg: 'User successfully added to the project.' });
+        res.status(201).json({ msg: 'Invitation has been sent successfully.', invitation: newInvitation.rows[0] });
 
     } catch (err) {
+        // This specific error code means a UNIQUE constraint was violated
         if (err.code === '23505') {
-            return res.status(400).json({ msg: 'User is already a member of this project.' });
+            return res.status(400).json({ msg: 'A pending invitation for this user already exists for this project.' });
         }
-        console.error("--- FAILED TO ADD PROJECT MEMBER (MAIN ERROR) ---");
+        console.error("--- FAILED TO SEND INVITATION ---");
         console.error(err.message);
         res.status(500).send('Server Error');
     }
 };
 
+exports.acceptInvitation = async (req, res) => {
+    const { invitationId } = req.params;
+    const userId = req.user.id;
+    const client = await pool.connect(); // Get a client from the pool for a transaction
+
+    try {
+        await client.query('BEGIN'); // Start the transaction
+
+        // 1. Find the invitation and verify the user is the invitee
+        const invitationResult = await client.query(
+            "SELECT * FROM project_invitations WHERE id = $1 AND status = 'pending'",
+            [invitationId]
+        );
+
+        if (invitationResult.rows.length === 0) {
+            await client.query('ROLLBACK'); // Abort the transaction
+            return res.status(404).json({ msg: 'Invitation not found or has already been actioned.' });
+        }
+
+        const invitation = invitationResult.rows[0];
+        const inviteeEmail = invitation.invitee_email;
+
+        // Verify the logged-in user's email matches the invitee's email
+        const userResult = await client.query("SELECT email FROM users WHERE id = $1", [userId]);
+        if (userResult.rows[0].email !== inviteeEmail) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ msg: 'Forbidden: You cannot accept an invitation for another user.' });
+        }
+
+        // 2. Update the invitation status to 'accepted'
+        await client.query(
+            "UPDATE project_invitations SET status = 'accepted' WHERE id = $1",
+            [invitationId]
+        );
+
+        // 3. Add the user to the project_members table
+        await client.query(
+            "INSERT INTO project_members (project_id, user_id) VALUES ($1, $2)",
+            [invitation.project_id, userId]
+        );
+
+        await client.query('COMMIT'); // Commit the transaction
+        res.json({ msg: 'Invitation accepted successfully. You are now a member of the project.' });
+
+    } catch (err) {
+        await client.query('ROLLBACK'); // Rollback on any error
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    } finally {
+        client.release(); // Release the client back to the pool
+    }
+};
+
+exports.declineInvitation = async (req, res) => {
+    const { invitationId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        // Find the invitation and verify the logged-in user is the invitee
+        const invitationResult = await pool.query(
+            "SELECT * FROM project_invitations WHERE id = $1 AND status = 'pending'",
+            [invitationId]
+        );
+
+        if (invitationResult.rows.length === 0) {
+            return res.status(404).json({ msg: 'Invitation not found or has already been actioned.' });
+        }
+
+        const userResult = await pool.query("SELECT email FROM users WHERE id = $1", [userId]);
+        if (userResult.rows[0].email !== invitationResult.rows[0].invitee_email) {
+            return res.status(403).json({ msg: 'Forbidden: You cannot decline an invitation for another user.' });
+        }
+
+        // Update the invitation status to 'declined'
+        await pool.query(
+            "UPDATE project_invitations SET status = 'declined' WHERE id = $1",
+            [invitationId]
+        );
+
+        res.json({ msg: 'Invitation declined successfully.' });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+exports.getPendingInvitations = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Find the user's email first
+        const userResult = await pool.query("SELECT email FROM users WHERE id = $1", [userId]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ msg: 'User not found.' });
+        }
+        const userEmail = userResult.rows[0].email;
+
+        // Now, fetch all pending invitations for that email
+        // We also join with the projects and users tables to get the project name and inviter's name
+        const invitationsResult = await pool.query(
+            `SELECT 
+                pi.id, 
+                pi.status, 
+                p.name AS project_name, 
+                u.username AS inviter_name
+             FROM project_invitations pi
+             JOIN projects p ON pi.project_id = p.id
+             JOIN users u ON pi.inviter_id = u.id
+             WHERE pi.invitee_email = $1 AND pi.status = 'pending'`,
+            [userEmail]
+        );
+
+        res.json(invitationsResult.rows);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
 
 exports.deleteProject = async (req, res) => {
     try {
@@ -203,3 +331,4 @@ exports.deleteProject = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+

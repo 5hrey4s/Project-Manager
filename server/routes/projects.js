@@ -20,13 +20,37 @@ router.get('/:projectId', projectController.getProjectById);
 // GET /api/projects/:projectId/members - Get all members of a project
 router.get('/:projectId/members', projectController.getProjectMembers);
 
-// POST /api/projects/:projectId/members - Add a user to a project (Invite)
-router.post('/:projectId/members', projectController.addProjectMember);
-
 // GET /api/projects/:projectId/tasks - Get all tasks for a project
 router.get('/:projectId/tasks', taskController.getTasksForProject);
 
 // DELETE /api/projects/:projectId - Delete a project
 router.delete('/:projectId', authMiddleware, projectController.deleteProject);
+
+
+// --- UPDATE: Change this route to use the new controller function ---
+// @route   POST api/projects/:projectId/invitations
+// @desc    Invite a user to a project
+// @access  Private (Owner only)
+router.post('/:projectId/invitations', auth, projectController.inviteProjectMember);
+
+
+// --- ADD THESE NEW ROUTES ---
+
+// @route   POST api/projects/invitations/:invitationId/accept
+// @desc    Accept a project invitation
+// @access  Private (Invited user only)
+router.post('/invitations/:invitationId/accept', auth, projectController.acceptInvitation);
+
+// @route   POST api/projects/invitations/:invitationId/decline
+// @desc    Decline a project invitation
+// @access  Private (Invited user only)
+router.post('/invitations/:invitationId/decline', auth, projectController.declineInvitation);
+
+// --- ADD THIS NEW ROUTE ---
+
+// @route   GET api/invitations
+// @desc    Get all pending invitations for the logged-in user
+// @access  Private
+router.get('/invitations', auth, projectController.getPendingInvitations);
 
 module.exports = router;
