@@ -187,19 +187,20 @@ exports.addComment = async (req, res) => {
     try {
         const { taskId } = req.params;
         const { content } = req.body;
-        const userId = req.user.id;
+        const senderId = req.user.id; // The person writing the comment
 
         const result = await pool.query(
             'INSERT INTO comments (task_id, user_id, content) VALUES ($1, $2, $3) RETURNING *',
-            [taskId, userId, content]
+            [taskId, senderId, content]
         );
         const newCommentData = result.rows[0];
 
-        const authorInfo = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+        // Get necessary info for notifications and socket events
+        const authorInfo = await pool.query('SELECT username FROM users WHERE id = $1', [senderId]);
         const authorName = authorInfo.rows[0].username;
 
-        const taskInfo = await pool.query('SELECT project_id, title FROM tasks WHERE id = $1', [taskId]);
-        const { project_id: projectId, title: taskTitle } = taskInfo.rows[0];
+        const taskInfoResult = await pool.query('SELECT project_id, title, assignee_id FROM tasks WHERE id = $1', [taskId]);
+        const { project_id: projectId, title: taskTitle, assignee_id: assigneeId } = taskInfoResult.rows[0];
 
         const commentForSocket = {
             id: newCommentData.id,
@@ -208,7 +209,10 @@ exports.addComment = async (req, res) => {
             author_name: authorName
         };
 
-        // --- Mention Notification Logic ---
+        // --- Notification Logic ---
+        const recipients = new Set();
+
+        // 1. Mention Notification Logic (existing)
         const mentions = content.match(/@(\w+)/g);
         if (mentions) {
             const mentionedUsernames = [...new Set(mentions.map(m => m.substring(1)))];
@@ -216,19 +220,29 @@ exports.addComment = async (req, res) => {
                 'SELECT id FROM users WHERE username = ANY($1::text[])',
                 [mentionedUsernames]
             );
-
             for (const user of usersResult.rows) {
-                if (user.id !== userId) {
-                    await createNotification({
-                        recipient_id: user.id,
-                        sender_id: userId,
-                        type: 'comment_mention',
-                        content: `mentioned you in a comment on "${taskTitle}"`,
-                        project_id: projectId,
-                        task_id: parseInt(taskId, 10),
-                    });
+                if (user.id !== senderId) {
+                    recipients.add(user.id);
                 }
             }
+        }
+
+        // --- FIX: New Comment Notification for Assignee ---
+        // 2. Notify the assignee of the task, if they weren't already mentioned.
+        if (assigneeId && assigneeId !== senderId && !recipients.has(assigneeId)) {
+            recipients.add(assigneeId);
+        }
+
+        // 3. Send notifications to all unique recipients
+        for (const recipientId of recipients) {
+            await createNotification({
+                recipient_id: recipientId,
+                sender_id: senderId,
+                type: 'new_comment', // Using a general type for both mentions and general comments
+                content: `commented on the task "${taskTitle}"`,
+                project_id: projectId,
+                task_id: parseInt(taskId, 10),
+            });
         }
 
         io.to(`project-${projectId}`).emit('new_comment', { taskId: parseInt(taskId, 10), comment: commentForSocket });
@@ -238,6 +252,7 @@ exports.addComment = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
 
 exports.deleteTask = async (req, res) => {
     try {
