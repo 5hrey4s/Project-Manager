@@ -127,19 +127,34 @@ exports.addProjectMember = async (req, res) => {
         }
         const userToInviteId = userToInviteResult.rows[0].id;
 
-        const projectResult = await pool.query("SELECT owner_id FROM projects WHERE id = $1", [projectId]);
+        const projectResult = await pool.query("SELECT name, owner_id FROM projects WHERE id = $1", [projectId]);
         if (projectResult.rows.length === 0) {
             return res.status(404).json({ msg: 'Project not found.' });
         }
+        const { name: projectName, owner_id: ownerId } = projectResult.rows[0];
 
-        if (projectResult.rows[0].owner_id !== inviterId) {
+        if (ownerId !== inviterId) {
             return res.status(403).json({ msg: 'Forbidden: Only the project owner can invite members.' });
         }
 
+        // Add the user to the project
         await pool.query(
             "INSERT INTO project_members (project_id, user_id) VALUES ($1, $2)",
             [projectId, userToInviteId]
         );
+
+        // --- FIX: Create a notification for the invited user ---
+        if (userToInviteId !== inviterId) { // Do not notify the owner if they invite themselves
+            await createNotification({
+                recipient_id: userToInviteId,
+                sender_id: inviterId,
+                type: 'project_invitation',
+                content: `invited you to join the project "${projectName}"`,
+                project_id: parseInt(projectId, 10),
+                task_id: null // No specific task is associated with a project invite
+            });
+        }
+
         res.status(201).json({ msg: 'User successfully added to the project.' });
     } catch (err) {
         if (err.code === '23505') {
@@ -149,6 +164,7 @@ exports.addProjectMember = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
 
 exports.deleteProject = async (req, res) => {
     try {
