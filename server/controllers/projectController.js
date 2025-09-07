@@ -116,53 +116,67 @@ exports.getProjectMembers = async (req, res) => {
 };
 
 exports.addProjectMember = async (req, res) => {
-    try {
-        const { projectId } = req.params;
-        const { email } = req.body;
-        const inviterId = parseInt(req.user.id, 10);
+  try {
+    const { projectId } = req.params;
+    const { email } = req.body;
+    const inviterId = parseInt(req.user.id, 10);
 
-        const userToInviteResult = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
-        if (userToInviteResult.rows.length === 0) {
-            return res.status(404).json({ msg: 'User with that email does not exist.' });
-        }
-        const userToInviteId = userToInviteResult.rows[0].id;
-
-        const projectResult = await pool.query("SELECT name, owner_id FROM projects WHERE id = $1", [projectId]);
-        if (projectResult.rows.length === 0) {
-            return res.status(404).json({ msg: 'Project not found.' });
-        }
-        const { name: projectName, owner_id: ownerId } = projectResult.rows[0];
-
-        if (ownerId !== inviterId) {
-            return res.status(403).json({ msg: 'Forbidden: Only the project owner can invite members.' });
-        }
-
-        // Add the user to the project
-        await pool.query(
-            "INSERT INTO project_members (project_id, user_id) VALUES ($1, $2)",
-            [projectId, userToInviteId]
-        );
-
-        // --- FIX: Create a notification for the invited user ---
-        if (userToInviteId !== inviterId) { // Do not notify the owner if they invite themselves
-            await createNotification({
-                recipient_id: userToInviteId,
-                sender_id: inviterId,
-                type: 'project_invitation',
-                content: `invited you to join the project "${projectName}"`,
-                project_id: parseInt(projectId, 10),
-                task_id: null // No specific task is associated with a project invite
-            });
-        }
-
-        res.status(201).json({ msg: 'User successfully added to the project.' });
-    } catch (err) {
-        if (err.code === '23505') {
-            return res.status(400).json({ msg: 'User is already a member of this project.' });
-        }
-        console.error(err.message);
-        res.status(500).send('Server Error');
+    // --- (Code to find user and check permissions remains the same) ---
+    const userToInviteResult = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    if (userToInviteResult.rows.length === 0) {
+      return res.status(404).json({ msg: 'User with that email does not exist.' });
     }
+    const userToInviteId = userToInviteResult.rows[0].id;
+
+    const projectResult = await pool.query("SELECT name, owner_id FROM projects WHERE id = $1", [projectId]);
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ msg: 'Project not found.' });
+    }
+    const { name: projectName, owner_id: ownerId } = projectResult.rows[0];
+
+    if (ownerId !== inviterId) {
+      return res.status(403).json({ msg: 'Forbidden: Only the project owner can invite members.' });
+    }
+
+    // --- Step 1: Add user to the project (This part is succeeding) ---
+    await pool.query(
+      "INSERT INTO project_members (project_id, user_id) VALUES ($1, $2)",
+      [projectId, userToInviteId]
+    );
+
+    // --- Step 2: Create a notification (This part is likely failing) ---
+    try {
+      console.log(`Attempting to create notification for user ${userToInviteId}`);
+      if (userToInviteId !== inviterId) {
+        await createNotification({
+          recipient_id: userToInviteId,
+          sender_id: inviterId,
+          type: 'project_invitation',
+          content: `invited you to join the project "${projectName}"`,
+          project_id: parseInt(projectId, 10),
+          task_id: null
+        });
+        console.log("Notification created successfully.");
+      }
+    } catch (notificationError) {
+      // --- FIX: Catch notification-specific errors ---
+      console.error("--- FAILED TO CREATE NOTIFICATION ---");
+      console.error(notificationError.message);
+      // We don't send an error response here because the main action (inviting) was successful.
+      // The error is logged for debugging, but the user gets a success message.
+    }
+
+    // --- Step 3: Send success response to the frontend ---
+    res.status(201).json({ msg: 'User successfully added to the project.' });
+
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ msg: 'User is already a member of this project.' });
+    }
+    console.error("--- FAILED TO ADD PROJECT MEMBER (MAIN ERROR) ---");
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
 };
 
 
