@@ -41,65 +41,69 @@ exports.createTask = async (req, res) => {
 };
 
 exports.updateTaskStatus = async (req, res) => {
-    try {
-        const { taskId } = req.params;
-        const { status, assignee_id } = req.body;
-        const senderId = req.user.id;
+  try {
+    const { taskId } = req.params;
+    const { status, assignee_id } = req.body; // Data from the frontend
+    const senderId = req.user.id;
 
-        // Get the state of the task *before* the update
-        const currentStateResult = await pool.query('SELECT status, assignee_id, project_id, title FROM tasks WHERE id = $1', [taskId]);
-        if (currentStateResult.rows.length === 0) {
-            return res.status(404).json({ msg: 'Task not found' });
-        }
-        const { status: oldStatus, assignee_id: oldAssigneeId, project_id: projectId, title: taskTitle } = currentStateResult.rows[0];
-
-        // Perform the update
-        const result = await pool.query(
-            'UPDATE tasks SET status = $1, assignee_id = $2 WHERE id = $3 RETURNING *',
-            [status, assignee_id, taskId]
-        );
-        const updatedTask = result.rows[0];
-
-        // --- Notification Logic ---
-
-        // 1. Task Assignment Notification (existing logic)
-        if (assignee_id && assignee_id !== oldAssigneeId) {
-            if (assignee_id !== senderId) {
-                await createNotification({
-                    recipient_id: assignee_id,
-                    sender_id: senderId,
-                    type: 'task_assigned',
-                    content: `assigned you to the task "${taskTitle}"`,
-                    project_id: projectId,
-                    task_id: parseInt(taskId, 10),
-                });
-            }
-        }
-
-        // --- FIX: New Task Status Update Notification ---
-        // 2. Notify the assignee if the status changes.
-        if (status && status !== oldStatus) {
-            // Only send if there is an assignee and they aren't the one who changed the status.
-            if (updatedTask.assignee_id && updatedTask.assignee_id !== senderId) {
-                await createNotification({
-                    recipient_id: updatedTask.assignee_id,
-                    sender_id: senderId,
-                    type: 'task_status_updated',
-                    content: `changed the status of "${taskTitle}" to "${status}"`,
-                    project_id: projectId,
-                    task_id: parseInt(taskId, 10)
-                });
-            }
-        }
-
-
-        io.to(`project-${updatedTask.project_id}`).emit('task_updated', updatedTask);
-        res.json(updatedTask);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+    // Get the full current state of the task
+    const currentStateResult = await pool.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+    if (currentStateResult.rows.length === 0) {
+      return res.status(404).json({ msg: 'Task not found' });
     }
+    const currentTask = currentStateResult.rows[0];
+
+    // --- FIX: Prepare the new values, preserving old ones if not provided ---
+    const newStatus = status !== undefined ? status : currentTask.status;
+    const newAssigneeId = assignee_id !== undefined ? assignee_id : currentTask.assignee_id;
+
+    // Perform the update with the correct data
+    const result = await pool.query(
+      'UPDATE tasks SET status = $1, assignee_id = $2 WHERE id = $3 RETURNING *',
+      [newStatus, newAssigneeId, taskId]
+    );
+    const updatedTask = result.rows[0];
+
+    // --- Notification Logic ---
+
+    // 1. Task Assignment Notification
+    // Only triggers if the assignee ID has actually changed
+    if (newAssigneeId !== null && newAssigneeId !== currentTask.assignee_id) {
+      if (newAssigneeId !== senderId) {
+        await createNotification({
+          recipient_id: newAssigneeId,
+          sender_id: senderId,
+          type: 'task_assigned',
+          content: `assigned you to the task "${currentTask.title}"`,
+          project_id: currentTask.project_id,
+          task_id: parseInt(taskId, 10),
+        });
+      }
+    }
+
+    // 2. Task Status Update Notification
+    // Only triggers if the status has actually changed
+    if (newStatus !== currentTask.status) {
+        if (updatedTask.assignee_id && updatedTask.assignee_id !== senderId) {
+            await createNotification({
+                recipient_id: updatedTask.assignee_id,
+                sender_id: senderId,
+                type: 'task_status_updated',
+                content: `changed the status of "${currentTask.title}" to "${newStatus}"`,
+                project_id: currentTask.project_id,
+                task_id: parseInt(taskId, 10)
+            });
+        }
+    }
+
+    io.to(`project-${updatedTask.project_id}`).emit('task_updated', updatedTask);
+    res.json(updatedTask);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
 };
+
 
 exports.assignTask = async (req, res) => {
     try {
