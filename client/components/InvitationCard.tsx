@@ -3,6 +3,7 @@ import React from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '../context/AuthContext';
+import { acceptInvitation, declineInvitation } from '../services/api';
 
 // Define the structure of an invitation object
 interface Invitation {
@@ -22,13 +23,8 @@ const InvitationCard: React.FC<InvitationCardProps> = ({ invitation, onAction })
   const handleAccept = async () => {
     if (!user) return;
     try {
-      await axios.post(
-        `/api/invitations/${invitation.id}/accept`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${user.token}` },
-        }
-      );
+            await acceptInvitation(invitation.id);
+
       alert('Invitation accepted!');
       onAction(invitation.id); // Notify the parent component to remove this card
     } catch (error) {
@@ -40,13 +36,8 @@ const InvitationCard: React.FC<InvitationCardProps> = ({ invitation, onAction })
   const handleDecline = async () => {
     if (!user) return;
     try {
-      await axios.post(
-        `/api/invitations/${invitation.id}/decline`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${user.token}` },
-        }
-      );
+            await declineInvitation(invitation.id);
+
       alert('Invitation declined.');
       onAction(invitation.id); // Notify the parent component to remove this card
     } catch (error) {
