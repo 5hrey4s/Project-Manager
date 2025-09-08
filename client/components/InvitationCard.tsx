@@ -23,7 +23,7 @@ const InvitationCard: React.FC<InvitationCardProps> = ({ invitation, onAction })
     if (!user) return;
     try {
       await axios.post(
-        `/api/projects/invitations/${invitation.id}/accept`,
+        `/api/invitations/${invitation.id}/accept`,
         {},
         {
           headers: { Authorization: `Bearer ${user.token}` },
@@ -41,7 +41,7 @@ const InvitationCard: React.FC<InvitationCardProps> = ({ invitation, onAction })
     if (!user) return;
     try {
       await axios.post(
-        `/api/projects/invitations/${invitation.id}/decline`,
+        `/api/invitations/${invitation.id}/decline`,
         {},
         {
           headers: { Authorization: `Bearer ${user.token}` },
