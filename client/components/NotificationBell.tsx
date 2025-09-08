@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
-import InvitationCard from './InvitationCard'; // Import the new InvitationCard component
+import InvitationCard from './InvitationCard';
 
 // Interface for regular notifications
 interface Notification {
@@ -33,7 +33,7 @@ interface Invitation {
 export default function NotificationBell() {
   const { user, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [invitations, setInvitations] = useState<Invitation[]>([]); // State for invitations
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
@@ -43,7 +43,6 @@ export default function NotificationBell() {
     if (isAuthenticated && user?.id) {
       const token = localStorage.getItem('token');
       
-      // Fetch initial notifications
       const fetchNotifications = async () => {
         try {
           const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
@@ -55,7 +54,6 @@ export default function NotificationBell() {
         }
       };
 
-      // Fetch pending invitations
       const fetchInvitations = async () => {
           try {
               const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/invitations`, {
@@ -70,11 +68,16 @@ export default function NotificationBell() {
       fetchNotifications();
       fetchInvitations();
 
-      // Socket connection logic
       if (!socketRef.current) {
         socketRef.current = io(process.env.NEXT_PUBLIC_API_URL!, { query: { userId: user.id } });
+        
         socketRef.current.on('new_notification', (newNotification: Notification) => {
           setNotifications(prev => [newNotification, ...prev]);
+        });
+
+        // --- FIX: Add a dedicated listener for INVITATIONS ---
+        socketRef.current.on('new_invitation', (newInvitation: Invitation) => {
+          setInvitations(prev => [newInvitation, ...prev]);
         });
       }
 
@@ -87,7 +90,6 @@ export default function NotificationBell() {
     }
   }, [isAuthenticated, user?.id]);
 
-  // Handler to remove an invitation from the UI after action
   const handleInvitationAction = (invitationId: number) => {
     setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
   };
@@ -107,7 +109,7 @@ export default function NotificationBell() {
     }
   };
   
-    const timeSince = (date: string) => {
+  const timeSince = (date: string) => {
     const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
     if (seconds < 5) return "just now";
     let interval = seconds / 31536000;
@@ -122,7 +124,6 @@ export default function NotificationBell() {
     if (interval > 1) return Math.floor(interval) + "min";
     return Math.floor(seconds) + "s";
   };
-
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -178,7 +179,7 @@ export default function NotificationBell() {
                     </Link>
                 ))
             ) : (
-                invitations.length === 0 && ( // Only show if no invitations either
+                invitations.length === 0 && (
                     <div className="p-8 text-center text-sm text-muted-foreground">
                         You have no new notifications.
                     </div>
