@@ -33,7 +33,7 @@ exports.createProject = async (req, res) => {
 exports.getUserProjects = async (req, res) => {
     try {
         const userId = req.user.id;
-        // --- FIX: Added the pm.is_active check to prevent future errors ---
+        // --- FIX: This query now correctly checks for is_active ---
         const projectsQuery = `
             SELECT p.*,
                    COALESCE(t.total_tasks, 0) as total_tasks,
@@ -117,13 +117,13 @@ exports.inviteProjectMember = async (req, res) => {
 
         const projectResult = await pool.query("SELECT name, owner_id FROM projects WHERE id = $1", [projectId]);
         if (projectResult.rows.length === 0) return res.status(404).json({ msg: 'Project not found.' });
-
+        
         const { name: projectName, owner_id: ownerId } = projectResult.rows[0];
         if (ownerId !== inviterId) return res.status(403).json({ msg: 'Forbidden: Only the project owner can invite members.' });
 
         const inviteeResult = await pool.query("SELECT id FROM users WHERE email = $1", [inviteeEmail]);
         if (inviteeResult.rows.length === 0) return res.status(404).json({ msg: 'User with that email does not exist.' });
-
+        
         const inviteeId = inviteeResult.rows[0].id;
         if (inviteeId === inviterId) return res.status(400).json({ msg: 'You cannot invite yourself.' });
 
@@ -135,7 +135,7 @@ exports.inviteProjectMember = async (req, res) => {
             [projectId, inviterId, inviteeEmail]
         );
         const newInvitation = newInvitationResult.rows[0];
-
+        
         // --- FIX: Emit a specific real-time event for the new invitation ---
         const io = getIO();
         const inviterResult = await pool.query("SELECT username FROM users WHERE id = $1", [inviterId]);
@@ -162,6 +162,7 @@ exports.inviteProjectMember = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
 
 exports.removeProjectMember = async (req, res) => {
     try {
