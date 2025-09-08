@@ -1,6 +1,7 @@
 // server/controllers/projectController.js
 const pool = require('../config/db');
 const { createNotification } = require('../services/notificationService');
+const { getIO } = require('../socket'); // <-- FIX: This line was missing
 
 exports.createProject = async (req, res) => {
     try {
@@ -117,13 +118,13 @@ exports.inviteProjectMember = async (req, res) => {
 
         const projectResult = await pool.query("SELECT name, owner_id FROM projects WHERE id = $1", [projectId]);
         if (projectResult.rows.length === 0) return res.status(404).json({ msg: 'Project not found.' });
-        
+
         const { name: projectName, owner_id: ownerId } = projectResult.rows[0];
         if (ownerId !== inviterId) return res.status(403).json({ msg: 'Forbidden: Only the project owner can invite members.' });
 
         const inviteeResult = await pool.query("SELECT id FROM users WHERE email = $1", [inviteeEmail]);
         if (inviteeResult.rows.length === 0) return res.status(404).json({ msg: 'User with that email does not exist.' });
-        
+
         const inviteeId = inviteeResult.rows[0].id;
         if (inviteeId === inviterId) return res.status(400).json({ msg: 'You cannot invite yourself.' });
 
@@ -135,7 +136,7 @@ exports.inviteProjectMember = async (req, res) => {
             [projectId, inviterId, inviteeEmail]
         );
         const newInvitation = newInvitationResult.rows[0];
-        
+
         // --- FIX: Emit a specific real-time event for the new invitation ---
         const io = getIO();
         const inviterResult = await pool.query("SELECT username FROM users WHERE id = $1", [inviterId]);
