@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
-const projectController = require('../controllers/projectController');
+const projectController = require('../controllers/invitationController');
 
 // @route   GET /api/invitations
 // @desc    Get all pending invitations for the logged-in user
