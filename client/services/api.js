@@ -42,7 +42,7 @@ export const assignTask = (taskId, assigneeId) => {
 
 // Invite Member
 export const inviteMember = (projectId, email) => {
-    return apiClient.post(`/api/projects/${projectId}/members`, { email }, authHeader());
+    return apiClient.post(`/api/projects/${projectId}/invitations`, { email }, authHeader());
 };
 
 // AI Task Generator
