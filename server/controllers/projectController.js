@@ -125,12 +125,12 @@ exports.inviteProjectMember = async (req, res) => {
 
         const projectResult = await pool.query("SELECT name, owner_id FROM projects WHERE id = $1", [projectId]);
         if (projectResult.rows.length === 0) return res.status(404).json({ msg: 'Project not found.' });
-        
+
         const { name: projectName, owner_id: ownerId } = projectResult.rows[0];
 
         const inviteeResult = await pool.query("SELECT id FROM users WHERE email = $1", [inviteeEmail]);
         if (inviteeResult.rows.length === 0) return res.status(404).json({ msg: 'User with that email does not exist.' });
-        
+
         const inviteeId = inviteeResult.rows[0].id;
 
         if (ownerId !== inviterId) return res.status(403).json({ msg: 'Forbidden: Only the project owner can invite members.' });
@@ -170,122 +170,40 @@ exports.inviteProjectMember = async (req, res) => {
     }
 };
 
-exports.acceptInvitation = async (req, res) => {
-    const { invitationId } = req.params;
-    const userId = req.user.id;
-    const client = await pool.connect();
-
-    try {
-        await client.query('BEGIN');
-
-        const invitationResult = await client.query("SELECT * FROM project_invitations WHERE id = $1 AND status = 'pending'", [invitationId]);
-        if (invitationResult.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ msg: 'Invitation not found or has already been actioned.' });
-        }
-
-        const invitation = invitationResult.rows[0];
-        const userResult = await client.query("SELECT email FROM users WHERE id = $1", [userId]);
-        if (userResult.rows[0].email !== invitation.invitee_email) {
-            await client.query('ROLLBACK');
-            return res.status(403).json({ msg: 'Forbidden: You cannot accept an invitation for another user.' });
-        }
-
-        await client.query("UPDATE project_invitations SET status = 'accepted' WHERE id = $1", [invitationId]);
-        await client.query("INSERT INTO project_members (project_id, user_id) VALUES ($1, $2)", [invitation.project_id, userId]);
-
-        await client.query('COMMIT');
-        res.json({ msg: 'Invitation accepted successfully. You are now a member of the project.' });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    } finally {
-        client.release();
-    }
-};
-
-exports.declineInvitation = async (req, res) => {
-    const { invitationId } = req.params;
-    const userId = req.user.id;
-
-    try {
-        const invitationResult = await pool.query("SELECT * FROM project_invitations WHERE id = $1 AND status = 'pending'", [invitationId]);
-        if (invitationResult.rows.length === 0) {
-            return res.status(404).json({ msg: 'Invitation not found or has already been actioned.' });
-        }
-        
-        const userResult = await pool.query("SELECT email FROM users WHERE id = $1", [userId]);
-        if (userResult.rows[0].email !== invitationResult.rows[0].invitee_email) {
-            return res.status(403).json({ msg: 'Forbidden: You cannot decline an invitation for another user.' });
-        }
-
-        await pool.query("UPDATE project_invitations SET status = 'declined' WHERE id = $1", [invitationId]);
-        res.json({ msg: 'Invitation declined successfully.' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-};
-
-exports.getPendingInvitations = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const userResult = await pool.query("SELECT email FROM users WHERE id = $1", [userId]);
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ msg: 'User not found.' });
-        }
-        const userEmail = userResult.rows[0].email;
-
-        const invitationsResult = await pool.query(
-            `SELECT pi.id, pi.status, p.name AS project_name, u.username AS inviter_name
-             FROM project_invitations pi
-             JOIN projects p ON pi.project_id = p.id
-             JOIN users u ON pi.inviter_id = u.id
-             WHERE pi.invitee_email = $1 AND pi.status = 'pending'`,
-            [userEmail]
-        );
-        res.json(invitationsResult.rows);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-};
-
 exports.removeProjectMember = async (req, res) => {
     try {
-      const { projectId, userId } = req.params;
-      const removerId = req.user.id;
-  
-      const projectResult = await pool.query("SELECT owner_id FROM projects WHERE id = $1", [projectId]);
-      if (projectResult.rows.length === 0) {
-        return res.status(404).json({ msg: 'Project not found.' });
-      }
-      const { owner_id: ownerId } = projectResult.rows[0];
-  
-      if (ownerId !== removerId) {
-        return res.status(403).json({ msg: 'Forbidden: Only the project owner can remove members.' });
-      }
-      
-      if (ownerId === parseInt(userId, 10)) {
-          return res.status(400).json({ msg: 'Project owner cannot be removed.' });
-      }
-  
-      const updateResult = await pool.query(
-        "UPDATE project_members SET is_active = FALSE WHERE project_id = $1 AND user_id = $2 RETURNING *",
-        [projectId, userId]
-      );
-  
-      if (updateResult.rowCount === 0) {
-          return res.status(404).json({ msg: 'Member not found in this project or already inactive.' });
-      }
-  
-      res.json({ msg: 'User has been successfully removed from the project.' });
+        const { projectId, userId } = req.params;
+        const removerId = req.user.id;
+
+        const projectResult = await pool.query("SELECT owner_id FROM projects WHERE id = $1", [projectId]);
+        if (projectResult.rows.length === 0) {
+            return res.status(404).json({ msg: 'Project not found.' });
+        }
+        const { owner_id: ownerId } = projectResult.rows[0];
+
+        if (ownerId !== removerId) {
+            return res.status(403).json({ msg: 'Forbidden: Only the project owner can remove members.' });
+        }
+
+        if (ownerId === parseInt(userId, 10)) {
+            return res.status(400).json({ msg: 'Project owner cannot be removed.' });
+        }
+
+        const updateResult = await pool.query(
+            "UPDATE project_members SET is_active = FALSE WHERE project_id = $1 AND user_id = $2 RETURNING *",
+            [projectId, userId]
+        );
+
+        if (updateResult.rowCount === 0) {
+            return res.status(404).json({ msg: 'Member not found in this project or already inactive.' });
+        }
+
+        res.json({ msg: 'User has been successfully removed from the project.' });
     } catch (err) {
-      console.error(err.message);
-      res.status(500).send('Server Error');
+        console.error(err.message);
+        res.status(500).send('Server Error');
     }
-  };
+};
 
 exports.deleteProject = async (req, res) => {
     try {
@@ -298,7 +216,7 @@ exports.deleteProject = async (req, res) => {
         );
 
         if (projectResult.rows.length === 0) {
-            return res.status(404).json({ msg: 'Project not found.'});
+            return res.status(404).json({ msg: 'Project not found.' });
         }
 
         if (projectResult.rows[0].owner_id !== userId) {

@@ -1,8 +1,8 @@
 const pool = require('../config/db');
 
 exports.getPendingInvitations = async (req, res) => {
+    const userEmail = req.user.email;
     try {
-        const userEmail = req.user.email;
         const invitationsResult = await pool.query(
             `SELECT pi.id, pi.status, p.name AS project_name, u.username AS inviter_name
              FROM project_invitations pi
