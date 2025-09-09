@@ -76,3 +76,12 @@ export const createTask = (projectId, title) => {
 export const updateTask = (taskId, taskData) => {
     return apiClient.put(`/api/tasks/${taskId}`, taskData, authHeader());
 };
+
+export const getTaskDetails = (taskId) => {
+    return apiClient.get(`/api/tasks/${taskId}`, authHeader());
+};
+
+
+export const deleteTask = (taskId) => {
+    return apiClient.delete(`/api/tasks/${taskId}`, authHeader());
+};
