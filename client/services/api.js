@@ -67,18 +67,19 @@ export const declineInvitation = (invitationId) => {
     return apiClient.post(`/api/invitations/${invitationId}/decline`, {}, authHeader());
 };
 
-// Create Task
-export const createTask = (projectId, title) => {
-    return apiClient.post('/api/tasks', { projectId, title }, authHeader());
+// --- UPDATED: Create a New Task (with all details) ---
+export const createTask = (taskData) => {
+    return apiClient.post('/api/tasks', taskData, authHeader());
 };
 
-// Update a Task's Details
+// --- NEW: Update a Task's Details ---
 export const updateTask = (taskId, taskData) => {
     return apiClient.put(`/api/tasks/${taskId}`, taskData, authHeader());
 };
 
+// --- NEW: Get Single Task Details ---
 export const getTaskDetails = (taskId) => {
-    return apiClient.get(`/api/tasks/${taskId}`, authHeader());
+    return apiClient.get(`/api/tasks/${taskId}/details`, authHeader());
 };
 
 
