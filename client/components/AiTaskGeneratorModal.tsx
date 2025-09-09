@@ -1,16 +1,13 @@
-// AiTaskGeneratorModal.tsx
 "use client"
 
 import type React from "react"
-
 import { useState, type FormEvent } from "react"
 import { Sparkles, Plus, Loader2 } from "lucide-react"
 import { createTask, generateAiTasks } from "../services/api"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-
-// --- CHANGE: Import Dialog components ---
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -46,61 +43,62 @@ export default function AiTaskGeneratorModal({ projectId, onClose, setTasks }: A
     setSuggestedTasks([])
     setAiError("")
     try {
-      const response = await generateAiTasks(projectId, aiGoal)
-      setSuggestedTasks(response.data.suggestedTasks)
+      const res = await generateAiTasks(projectId, aiGoal)
+      setSuggestedTasks(res.data.tasks)
     } catch (error) {
-      console.error(error)
+      console.error("AI task generation failed:", error)
       setAiError("Failed to generate tasks. Please try again.")
     } finally {
       setIsGenerating(false)
     }
   }
 
+  // --- THIS IS THE FIX ---
   const handleAddTask = async (taskTitle: string) => {
     try {
-      const response = await createTask(projectId, taskTitle)
-      setTasks((prevTasks) => [...prevTasks, response.data])
-      setSuggestedTasks((prev) => prev.filter((t) => t !== taskTitle))
+      // Call createTask with a single object, including a default status
+      const res = await createTask({
+        projectId: parseInt(projectId, 10),
+        title: taskTitle,
+        status: "To Do",
+      });
+      
+      setTasks((prev) => [...prev, res.data]);
+      toast.success(`Task "${taskTitle}" added.`);
+      // Remove the added task from the suggestion list
+      setSuggestedTasks((prev) => prev.filter((t) => t !== taskTitle));
     } catch (error) {
-      console.error("Failed to add task", error)
+      toast.error(`Failed to add task: ${taskTitle}`);
+      console.error("Failed to add AI task", error);
     }
   }
 
   const handleClose = () => {
+    setAiGoal("")
     setSuggestedTasks([])
     setAiError("")
     onClose()
   }
 
-  // --- CHANGE: Replaced outer div and Card with Dialog components ---
   return (
     <Dialog open={true} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5" />
-            AI Task Generator
-          </DialogTitle>
+          <DialogTitle>AI Task Generator</DialogTitle>
           <DialogDescription>
-            Describe a goal, and the AI will suggest a list of tasks to accomplish it.
+            Describe your main goal, and the AI will suggest a list of tasks to help you achieve it.
           </DialogDescription>
         </DialogHeader>
-
-        <form onSubmit={handleGenerateTasks} className="space-y-4 pt-2">
+        <form onSubmit={handleGenerateTasks} className="space-y-4">
           <Textarea
+            placeholder="e.g., Launch a new marketing campaign for our Q4 product release."
             value={aiGoal}
             onChange={(e) => setAiGoal(e.target.value)}
-            placeholder="e.g., Build a user authentication system with login, registration, and password reset functionality..."
-            className="min-h-[100px] resize-none"
-            required
+            rows={3}
+            disabled={isGenerating}
           />
-
           <div className="flex justify-end">
-            <Button
-              type="submit"
-              disabled={isGenerating}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-            >
+            <Button type="submit" disabled={isGenerating || !aiGoal.trim()}>
               {isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -122,7 +120,6 @@ export default function AiTaskGeneratorModal({ projectId, onClose, setTasks }: A
               <h3 className="font-semibold text-foreground">Suggested Tasks</h3>
               <Badge variant="secondary">{suggestedTasks.length}</Badge>
             </div>
-
             <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
               {suggestedTasks.map((task, index) => (
                 <div key={index} className="flex items-center justify-between gap-3 p-3 bg-muted/50 rounded-md">
