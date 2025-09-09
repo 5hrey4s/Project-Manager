@@ -19,18 +19,23 @@ exports.getTasksForProject = async (req, res) => {
 
 exports.createTask = async (req, res) => {
     try {
-        const { title, projectId, status } = req.body;
+        // Add start_date and due_date to the destructured body
+        const { projectId, title, description, status, assignee_id, start_date, due_date } = req.body;
+        const creatorId = req.user.id;
 
-        const newTaskQuery = `
-            INSERT INTO tasks (title, project_id, status) 
-            VALUES ($1, $2, $3) 
-            RETURNING id, title, status, assignee_id, project_id;
-        `;
+        if (!title || !projectId) {
+            return res.status(400).json({ msg: 'Project ID and title are required.' });
+        }
 
-        const result = await pool.query(newTaskQuery, [title, projectId, status]);
-        const newTask = result.rows[0];
+        // --- FIX: Add the new date columns to the INSERT query ---
+        const newTaskResult = await pool.query(
+            `INSERT INTO tasks (project_id, title, description, status, creator_id, assignee_id, start_date, due_date)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+            [projectId, title, description || null, status || 'To Do', creatorId, assignee_id || null, start_date || null, due_date || null]
+        );
+        const newTask = newTaskResult.rows[0];
 
-        // Real-time broadcast to all users in the project
+        const io = getIO();
         io.to(`project-${projectId}`).emit('task_created', newTask);
 
         res.status(201).json(newTask);
@@ -39,6 +44,7 @@ exports.createTask = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
 
 exports.updateTaskStatus = async (req, res) => {
     try {
@@ -274,6 +280,72 @@ exports.deleteTask = async (req, res) => {
         res.status(200).json({ msg: 'Task deleted successfully' });
     } catch (err) {
         console.error('Error deleting task:', err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// Add this new function to the file.
+
+exports.updateTask = async (req, res) => {
+    try {
+        const { taskId } = req.params;
+        // Get all the possible fields that can be updated from the request body
+        const { title, description, status, assignee_id, start_date, due_date } = req.body;
+        const userId = req.user.id;
+
+        // First, get the project_id to perform security checks and for socket.io room
+        const taskResult = await pool.query("SELECT project_id FROM tasks WHERE id = $1", [taskId]);
+        if (taskResult.rows.length === 0) {
+            return res.status(404).json({ msg: 'Task not found.' });
+        }
+        const projectId = taskResult.rows[0].project_id;
+
+        // Verify the user is a member of the project
+        const memberCheck = await pool.query(
+            "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2 AND is_active = TRUE",
+            [projectId, userId]
+        );
+        if (memberCheck.rows.length === 0) {
+            return res.status(403).json({ msg: 'Forbidden: You do not have permission to edit tasks in this project.' });
+        }
+
+        // Build the UPDATE query dynamically to only change fields that were provided
+        const updatedTaskResult = await pool.query(
+            `UPDATE tasks SET 
+             title = COALESCE($1, title), 
+             description = COALESCE($2, description), 
+             status = COALESCE($3, status), 
+             assignee_id = COALESCE($4, assignee_id),
+             start_date = COALESCE($5, start_date),
+             due_date = COALESCE($6, due_date),
+             updated_at = NOW()
+             WHERE id = $7 RETURNING *`,
+            [title, description, status, assignee_id, start_date, due_date, taskId]
+        );
+
+        const updatedTask = updatedTaskResult.rows[0];
+
+        // Send a real-time event to all project members
+        const io = getIO();
+        io.to(`project-${projectId}`).emit('task_updated', updatedTask);
+
+        // Send a notification if the task was assigned
+        if (assignee_id && assignee_id !== null) {
+            const senderResult = await pool.query("SELECT username FROM users WHERE id = $1", [userId]);
+            const projectResult = await pool.query("SELECT name FROM projects WHERE id = $1", [projectId]);
+            await createNotification({
+                recipient_id: assignee_id,
+                sender_id: userId,
+                type: 'task_assignment',
+                content: `assigned you to the task "${updatedTask.title}" in project "${projectResult.rows[0].name}"`,
+                project_id: projectId,
+                task_id: parseInt(taskId, 10)
+            });
+        }
+
+        res.json(updatedTask);
+    } catch (err) {
+        console.error('Error updating task:', err.message);
         res.status(500).send('Server Error');
     }
 };

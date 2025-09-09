@@ -55,10 +55,7 @@ export const queryCopilot = (projectId, message) => {
     return apiClient.post('/api/ai/copilot', { projectId, message }, authHeader());
 };
 
-// Create Task
-export const createTask = (projectId, title) => {
-    return apiClient.post('/api/tasks', { projectId, title }, authHeader());
-};
+
 
 // Accept a Project Invitation
 export const acceptInvitation = (invitationId) => {
@@ -68,4 +65,14 @@ export const acceptInvitation = (invitationId) => {
 // Decline a Project Invitation
 export const declineInvitation = (invitationId) => {
     return apiClient.post(`/api/invitations/${invitationId}/decline`, {}, authHeader());
+};
+
+// Create Task
+export const createTask = (projectId, title) => {
+    return apiClient.post('/api/tasks', { projectId, title }, authHeader());
+};
+
+// Update a Task's Details
+export const updateTask = (taskId, taskData) => {
+    return apiClient.put(`/api/tasks/${taskId}`, taskData, authHeader());
 };
