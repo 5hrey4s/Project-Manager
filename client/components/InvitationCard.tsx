@@ -1,6 +1,5 @@
 // client/components/InvitationCard.tsx
 import React from 'react';
-import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '../context/AuthContext';
 import { acceptInvitation, declineInvitation } from '../services/api';

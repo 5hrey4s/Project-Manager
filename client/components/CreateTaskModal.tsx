@@ -5,9 +5,9 @@ import { format } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
-import { cn } from '@/lib/utils'; // Make sure you have this utility for class names
+import { cn } from '@/lib/utils';
 
-// --- Component Imports ---
+// --- UI Imports ---
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { toast } from 'sonner';
 
 // --- Service Imports ---
-import { createTask } from '../services/api'; // Import your centralized API function
+import { createTask } from '../services/api'; // Use our centralized API function
 
 // --- Type Definitions ---
 type TaskStatus = "To Do" | "In Progress" | "Done";
@@ -30,7 +30,7 @@ interface CreateTaskModalProps {
 export default function CreateTaskModal({ isOpen, onClose, projectId, column }: CreateTaskModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  // --- FIX: Add state for the new date fields ---
+  // --- ADDED: State for the new date fields ---
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [isCreating, setIsCreating] = useState(false);
@@ -43,7 +43,7 @@ export default function CreateTaskModal({ isOpen, onClose, projectId, column }: 
     }
     setIsCreating(true);
     try {
-      // --- FIX: Pass all new fields to the createTask API function ---
+      // --- MODIFIED: Pass all new fields to the createTask API function ---
       await createTask({
         title,
         description,
@@ -78,7 +78,7 @@ export default function CreateTaskModal({ isOpen, onClose, projectId, column }: 
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          {/* --- Title and Description (No Change) --- */}
+          {/* --- Title and Description (Unchanged) --- */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Task Title</label>
             <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Design the homepage mockup" required />
@@ -88,7 +88,7 @@ export default function CreateTaskModal({ isOpen, onClose, projectId, column }: 
             <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add more details about the task..." />
           </div>
 
-          {/* --- FIX: Add Start Date and Due Date Pickers --- */}
+          {/* --- ADDED: Start Date and Due Date Pickers --- */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>

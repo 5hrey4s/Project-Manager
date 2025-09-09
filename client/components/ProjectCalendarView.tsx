@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { EventClickArg } from '@fullcalendar/core'; // <-- FIX: Import the correct type
+import { EventClickArg } from '@fullcalendar/core';
 import { getProjectTasks } from '../services/api';
 import { toast } from 'sonner';
 
-// Define the structure of a task from our API
+// Type for a task coming from our API
 interface Task {
   id: number;
   title: string;
@@ -17,7 +17,7 @@ interface Task {
   status: string;
 }
 
-// Define the structure of a FullCalendar event
+// Type for the event object FullCalendar expects
 interface CalendarEvent {
   id: string;
   title: string;
@@ -27,7 +27,7 @@ interface CalendarEvent {
   borderColor: string;
 }
 
-// Define the props for our component
+// Props for our component
 interface ProjectCalendarViewProps {
   projectId: number;
   onTaskClick: (taskId: number) => void;
@@ -43,14 +43,14 @@ export default function ProjectCalendarView({ projectId, onTaskClick }: ProjectC
         const tasks: Task[] = res.data;
 
         const formattedEvents: CalendarEvent[] = tasks
-          .filter(task => task.start_date || task.due_date)
+          .filter(task => task.start_date || task.due_date) // Only show tasks that have a date
           .map(task => ({
             id: task.id.toString(),
             title: task.title,
             start: task.start_date || undefined,
             end: task.due_date || undefined,
-            backgroundColor: task.status === 'Done' ? '#16a34a' : '#2563eb',
-            borderColor: task.status === 'Done' ? '#16a3a' : '#2563eb',
+            backgroundColor: task.status === 'Done' ? '#16a34a' : '#2563eb', // Green for done, blue for others
+            borderColor: task.status === 'Done' ? '#16a34a' : '#2563eb',
           }));
         
         setEvents(formattedEvents);
@@ -65,13 +65,13 @@ export default function ProjectCalendarView({ projectId, onTaskClick }: ProjectC
     }
   }, [projectId]);
 
-  // --- FIX: Apply the correct type to the clickInfo parameter ---
   const handleEventClick = (clickInfo: EventClickArg) => {
+    // When a task on the calendar is clicked, open the details modal
     onTaskClick(Number(clickInfo.event.id));
   };
 
   return (
-    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg">
+    <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
       <FullCalendar
         plugins={[dayGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
@@ -82,7 +82,7 @@ export default function ProjectCalendarView({ projectId, onTaskClick }: ProjectC
         }}
         events={events}
         eventClick={handleEventClick}
-        height="70vh"
+        height="75vh" // Adjust height as needed
       />
     </div>
   );
