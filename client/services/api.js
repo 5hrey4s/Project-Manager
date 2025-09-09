@@ -1,63 +1,34 @@
 import axios from 'axios';
 
-// Create a new Axios instance with a base URL
 const apiClient = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL,
 });
 
-// Function to get the auth token from localStorage
 const getToken = () => localStorage.getItem('token');
-
-// Create a config object with the auth header
 const authHeader = () => ({
     headers: { 'x-auth-token': getToken() }
 });
 
 // --- API Functions ---
+export const getProjectDetails = (projectId) => apiClient.get(`/api/projects/${projectId}`, authHeader());
+export const getProjectTasks = (projectId) => apiClient.get(`/api/projects/${projectId}/tasks`, authHeader());
+export const getProjectMembers = (projectId) => apiClient.get(`/api/projects/${projectId}/members`, authHeader());
+export const getTaskDetails = (taskId) => apiClient.get(`/api/tasks/${taskId}/details`, authHeader());
 
-// Project Details
-export const getProjectDetails = (projectId) => {
-    return apiClient.get(`/api/projects/${projectId}`, authHeader());
+// --- THIS IS THE FIX ---
+// This function now accepts a single object with all task data
+export const createTask = (taskData) => {
+    return apiClient.post('/api/tasks', taskData, authHeader());
 };
 
-// Project Tasks
-export const getProjectTasks = (projectId) => {
-    return apiClient.get(`/api/projects/${projectId}/tasks`, authHeader());
-};
+export const updateTask = (taskId, taskData) => apiClient.put(`/api/tasks/${taskId}`, taskData, authHeader());
+export const updateTaskStatus = (taskId, status) => apiClient.patch(`/api/tasks/${taskId}/status`, { status }, authHeader());
+export const deleteTask = (taskId) => apiClient.delete(`/api/tasks/${taskId}`, authHeader());
+export const inviteMember = (projectId, email) => apiClient.post(`/api/projects/${projectId}/invitations`, { email }, authHeader());
+export const generateAiTasks = (projectId, goal) => apiClient.post('/api/ai/generate-tasks', { projectId, goal }, authHeader());
+export const queryCopilot = (projectId, message) => apiClient.post('/api/ai/copilot', { projectId, message }, authHeader());
+export const assignTask = (taskId, assigneeId) => apiClient.patch(`/api/tasks/${taskId}/assign`, { assigneeId }, authHeader());
 
-// Project Members
-export const getProjectMembers = (projectId) => {
-    return apiClient.get(`/api/projects/${projectId}/members`, authHeader());
-};
-
-// Update Task Status
-export const updateTaskStatus = (taskId, status) => {
-    return apiClient.patch(`/api/tasks/${taskId}/status`, { status }, authHeader());
-};
-
-// Assign Task
-export const assignTask = (taskId, assigneeId) => {
-    return apiClient.patch(`/api/tasks/${taskId}/assign`, { assigneeId }, authHeader());
-};
-
-// Invite Member
-export const inviteMember = (projectId, email) => {
-    return apiClient.post(`/api/projects/${projectId}/invitations`, { email }, authHeader());
-};
-
-// AI Task Generator
-export const generateAiTasks = (projectId, goal) => {
-    return apiClient.post('/api/ai/generate-tasks', { projectId, goal }, authHeader());
-};
-
-// AI Copilot
-export const queryCopilot = (projectId, message) => {
-    return apiClient.post('/api/ai/copilot', { projectId, message }, authHeader());
-};
-
-
-
-// Accept a Project Invitation
 export const acceptInvitation = (invitationId) => {
     return apiClient.post(`/api/invitations/${invitationId}/accept`, {}, authHeader());
 };
@@ -65,24 +36,4 @@ export const acceptInvitation = (invitationId) => {
 // Decline a Project Invitation
 export const declineInvitation = (invitationId) => {
     return apiClient.post(`/api/invitations/${invitationId}/decline`, {}, authHeader());
-};
-
-// --- UPDATED: Create a New Task (with all details) ---
-export const createTask = (taskData) => {
-    return apiClient.post('/api/tasks', taskData, authHeader());
-};
-
-// --- NEW: Update a Task's Details ---
-export const updateTask = (taskId, taskData) => {
-    return apiClient.put(`/api/tasks/${taskId}`, taskData, authHeader());
-};
-
-// --- NEW: Get Single Task Details ---
-export const getTaskDetails = (taskId) => {
-    return apiClient.get(`/api/tasks/${taskId}/details`, authHeader());
-};
-
-
-export const deleteTask = (taskId) => {
-    return apiClient.delete(`/api/tasks/${taskId}`, authHeader());
 };
