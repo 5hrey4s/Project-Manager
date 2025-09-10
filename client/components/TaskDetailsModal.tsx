@@ -82,8 +82,36 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
     fetchDetails();
   }, [taskId, onClose]);
 
-  const handleSaveChanges = async () => { /* ... (unchanged) ... */ };
-  const handleDelete = async () => { /* ... (unchanged) ... */ };
+const handleSaveChanges = async () => {
+    if (!taskId) return;
+    try {
+      await updateTask(taskId, {
+        title,
+        description,
+        priority,
+        start_date: startDate,
+        due_date: dueDate,
+      });
+      toast.success("Task updated successfully!");
+      onClose();
+    } catch (error) {
+      toast.error("Failed to save changes.");
+      console.error("Save task error:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!taskId) return;
+    try {
+      await deleteTask(taskId);
+      toast.success("Task deleted!");
+      onClose();
+    } catch (error) {
+      toast.error("Failed to delete task.");
+      console.error("Delete task error:", error);
+    }
+  };
+
 
   const handleSubmitComment = async (e: FormEvent) => {
     e.preventDefault();
