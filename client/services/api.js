@@ -37,3 +37,7 @@ export const acceptInvitation = (invitationId) => {
 export const declineInvitation = (invitationId) => {
     return apiClient.post(`/api/invitations/${invitationId}/decline`, {}, authHeader());
 };
+
+export const addComment = (taskId, content) => {
+    return apiClient.post(`/api/tasks/${taskId}/comments`, { content }, authHeader());
+};

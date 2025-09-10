@@ -191,6 +191,7 @@ exports.getTaskDetails = async (req, res) => {
     }
 };
 
+
 exports.addComment = async (req, res) => {
     try {
         const { taskId } = req.params;
@@ -198,6 +199,7 @@ exports.addComment = async (req, res) => {
         const senderId = req.user.id; // The person writing the comment
 
         const result = await pool.query(
+            // Use user_id as per your original schema
             'INSERT INTO comments (task_id, user_id, content) VALUES ($1, $2, $3) RETURNING *',
             [taskId, senderId, content]
         );
@@ -219,8 +221,6 @@ exports.addComment = async (req, res) => {
 
         // --- Notification Logic ---
         const recipients = new Set();
-
-        // 1. Mention Notification Logic (existing)
         const mentions = content.match(/@(\w+)/g);
         if (mentions) {
             const mentionedUsernames = [...new Set(mentions.map(m => m.substring(1)))];
@@ -235,29 +235,30 @@ exports.addComment = async (req, res) => {
             }
         }
 
-        // --- FIX: New Comment Notification for Assignee ---
-        // 2. Notify the assignee of the task, if they weren't already mentioned.
+        // Notify the assignee of the task, if they weren't already mentioned.
         if (assigneeId && assigneeId !== senderId && !recipients.has(assigneeId)) {
             recipients.add(assigneeId);
         }
 
-        // 3. Send notifications to all unique recipients
+        // Send notifications to all unique recipients
         for (const recipientId of recipients) {
             await createNotification({
                 recipient_id: recipientId,
                 sender_id: senderId,
-                type: 'new_comment', // Using a general type for both mentions and general comments
+                type: 'new_comment',
                 content: `commented on the task "${taskTitle}"`,
                 project_id: projectId,
                 task_id: parseInt(taskId, 10),
             });
         }
-        const io = getIO();
 
+        const io = getIO();
+        // Use 'new_comment' event name as per your original code
         io.to(`project-${projectId}`).emit('new_comment', { taskId: parseInt(taskId, 10), comment: commentForSocket });
+
         res.status(201).json(commentForSocket);
     } catch (err) {
-        console.error(err.message);
+        console.error('Error adding comment:', err.message);
         res.status(500).send('Server Error');
     }
 };
