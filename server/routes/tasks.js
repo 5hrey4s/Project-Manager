@@ -1,30 +1,29 @@
 const express = require('express');
 const router = express.Router();
 const taskController = require('../controllers/taskController');
-const authMiddleware = require('../middleware/auth');
+const auth = require('../middleware/auth');
 
 // Protect all task routes
-router.use(authMiddleware);
+router.use(auth);
 
 // POST /api/tasks - Create a new task
-router.post('/', authMiddleware, taskController.createTask);
+router.post('/', taskController.createTask);
 
-// GET /api/projects/:projectId/tasks - Get tasks for a project
-// Note: We'll place this in projects.js for better REST structure
+// --- THIS IS THE FIX ---
+// PUT /api/tasks/:taskId - Update a task's details
+router.put('/:taskId', taskController.updateTask);
 
-// PATCH /api/tasks/:taskId/status - Update task status
+// PATCH /api/tasks/:taskId/status - Update task status (for drag-and-drop)
 router.patch('/:taskId/status', taskController.updateTaskStatus);
-
-// PATCH /api/tasks/:taskId/assign - Assign a task
-router.patch('/:taskId/assign', taskController.assignTask);
 
 // GET /api/tasks/:taskId/details - Get all details for a single task
 router.get('/:taskId/details', taskController.getTaskDetails);
 
 // POST /api/tasks/:taskId/comments - Add a new comment to a task
-router.post('/:taskId/comments', authMiddleware, taskController.addComment);
+router.post('/:taskId/comments', taskController.addComment);
 
-// DELETE /api/tasks/:taskId - Delete a task
-router.delete('/:taskId', authMiddleware, taskController.deleteTask);
+// DELETE /api/tasks/:taskId - Soft delete a task
+router.delete('/:taskId', taskController.deleteTask);
+
 
 module.exports = router;
