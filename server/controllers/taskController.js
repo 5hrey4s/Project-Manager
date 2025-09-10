@@ -1,5 +1,5 @@
 const pool = require('../config/db');
-const { io } = require('../index'); // We need to import io to emit events
+const { getIO } = require('../socket'); // <-- FIX: This line was missing
 const { createNotification } = require('../services/notificationService');
 
 exports.getTasksForProject = async (req, res) => {
@@ -19,7 +19,6 @@ exports.getTasksForProject = async (req, res) => {
 
 exports.createTask = async (req, res) => {
     try {
-        // FIX: Destructure all possible fields from the request body
         const { projectId, title, description, status, start_date, due_date } = req.body;
         const creatorId = req.user.id;
 
@@ -27,7 +26,6 @@ exports.createTask = async (req, res) => {
             return res.status(400).json({ msg: 'Project ID and title are required.' });
         }
 
-        // FIX: Update the INSERT query to include the new date columns
         const newTaskResult = await pool.query(
             `INSERT INTO tasks (project_id, title, description, status, creator_id, start_date, due_date)
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -35,7 +33,6 @@ exports.createTask = async (req, res) => {
         );
         const newTask = newTaskResult.rows[0];
 
-        // This will now work correctly
         const io = getIO();
         io.to(`project-${projectId}`).emit('task_created', newTask);
 
@@ -105,6 +102,7 @@ exports.updateTaskStatus = async (req, res) => {
                 });
             }
         }
+        const io = getIO();
 
         io.to(`project-${updatedTask.project_id}`).emit('task_updated', updatedTask);
         res.json(updatedTask);
@@ -145,6 +143,7 @@ exports.assignTask = async (req, res) => {
                 task_id: parseInt(taskId, 10),
             });
         }
+        const io = getIO();
 
         io.to(`project-${updatedTask.project_id}`).emit('task_updated', updatedTask);
         res.json(updatedTask);
@@ -253,6 +252,7 @@ exports.addComment = async (req, res) => {
                 task_id: parseInt(taskId, 10),
             });
         }
+        const io = getIO();
 
         io.to(`project-${projectId}`).emit('new_comment', { taskId: parseInt(taskId, 10), comment: commentForSocket });
         res.status(201).json(commentForSocket);
@@ -276,6 +276,7 @@ exports.deleteTask = async (req, res) => {
 
         // Delete the task
         await pool.query('DELETE FROM tasks WHERE id = $1', [taskId]);
+        const io = getIO();
 
         // Real-time broadcast of the deletion
         io.to(`project-${project_id}`).emit('task_deleted', { taskId: parseInt(taskId, 10), projectId: project_id });
@@ -292,60 +293,37 @@ exports.deleteTask = async (req, res) => {
 exports.updateTask = async (req, res) => {
     try {
         const { taskId } = req.params;
-        // Get all the possible fields that can be updated from the request body
-        const { title, description, status, assignee_id, start_date, due_date } = req.body;
+        const { title, description, status, assignee_id, priority, start_date, due_date } = req.body;
         const userId = req.user.id;
 
-        // First, get the project_id to perform security checks and for socket.io room
         const taskResult = await pool.query("SELECT project_id FROM tasks WHERE id = $1", [taskId]);
-        if (taskResult.rows.length === 0) {
-            return res.status(404).json({ msg: 'Task not found.' });
-        }
+        if (taskResult.rows.length === 0) return res.status(404).json({ msg: 'Task not found.' });
         const projectId = taskResult.rows[0].project_id;
 
-        // Verify the user is a member of the project
-        const memberCheck = await pool.query(
-            "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2 AND is_active = TRUE",
-            [projectId, userId]
-        );
-        if (memberCheck.rows.length === 0) {
-            return res.status(403).json({ msg: 'Forbidden: You do not have permission to edit tasks in this project.' });
-        }
-
-        // Build the UPDATE query dynamically to only change fields that were provided
         const updatedTaskResult = await pool.query(
             `UPDATE tasks SET 
-             title = COALESCE($1, title), 
-             description = COALESCE($2, description), 
-             status = COALESCE($3, status), 
-             assignee_id = COALESCE($4, assignee_id),
-             start_date = COALESCE($5, start_date),
-             due_date = COALESCE($6, due_date),
-             updated_at = NOW()
-             WHERE id = $7 RETURNING *`,
-            [title, description, status, assignee_id, start_date, due_date, taskId]
+             title = COALESCE($1, title), description = COALESCE($2, description), 
+             status = COALESCE($3, status), assignee_id = COALESCE($4, assignee_id),
+             priority = COALESCE($5, priority), start_date = COALESCE($6, start_date), 
+             due_date = COALESCE($7, due_date), updated_at = NOW()
+             WHERE id = $8 RETURNING *`,
+            [title, description, status, assignee_id, priority, start_date, due_date, taskId]
         );
-
         const updatedTask = updatedTaskResult.rows[0];
 
-        // Send a real-time event to all project members
         const io = getIO();
         io.to(`project-${projectId}`).emit('task_updated', updatedTask);
 
-        // Send a notification if the task was assigned
-        if (assignee_id && assignee_id !== null) {
-            const senderResult = await pool.query("SELECT username FROM users WHERE id = $1", [userId]);
-            const projectResult = await pool.query("SELECT name FROM projects WHERE id = $1", [projectId]);
+        if (assignee_id) {
             await createNotification({
                 recipient_id: assignee_id,
                 sender_id: userId,
                 type: 'task_assignment',
-                content: `assigned you to the task "${updatedTask.title}" in project "${projectResult.rows[0].name}"`,
+                content: `assigned you to the task "${updatedTask.title}"`,
                 project_id: projectId,
                 task_id: parseInt(taskId, 10)
             });
         }
-
         res.json(updatedTask);
     } catch (err) {
         console.error('Error updating task:', err.message);
