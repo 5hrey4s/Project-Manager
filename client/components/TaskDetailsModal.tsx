@@ -92,7 +92,7 @@ interface TaskDetailsModalProps {
 }
 
 export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalProps) {
-  const { user } = useAuth()
+  // const { user } = useAuth()
   const [task, setTask] = useState<TaskDetails | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -173,6 +173,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
       // Real-time update will be handled by the socket listener on the main page
     } catch (error) {
       toast.error("Failed to post comment.")
+      console.error(`Failed to post comment: ${error}`)
     }
   }
 
@@ -192,6 +193,8 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
       if (fileInputRef.current) fileInputRef.current.value = ""
     } catch (error) {
       toast.error("File upload failed.")
+      console.error(`File upload failed.: ${error}`)
+
     } finally {
       setIsUploading(false)
     }
@@ -498,7 +501,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                                 ) : (
                                   <>
                                     <Upload className="w-4 h-4 mr-2" />
-                                    Upload "{selectedFile.name.substring(0, 20)}..."
+                                    Upload &quot;{selectedFile.name.substring(0, 20)}...&quot;
                                   </>
                                 )}
                               </Button>
@@ -736,7 +739,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                                 ) : (
                                   <>
                                     <Upload className="w-4 h-4 mr-2" />
-                                    Upload "{selectedFile.name.substring(0, 15)}..."
+                                    Upload &quot;{selectedFile.name.substring(0, 15)}...&quot;
                                   </>
                                 )}
                               </Button>
