@@ -10,15 +10,18 @@ import { getTaskDetails, deleteTask } from '../services/api';
 
 // --- Type Definitions ---
 interface Comment { id: number; content: string; created_at: string; author_name: string; }
+// FIX: Define specific types for attachments and labels instead of 'any'
+interface Attachment { id: number; file_name: string; file_url: string; uploaded_at: string; }
+interface Label { id: number; name: string; color: string; }
+
 interface TaskDetails {
   id: number;
   title: string;
   description: string | null;
   status: string;
   comments: Comment[];
-  // Add other fields from your API response here if needed
-  attachments: any[]; // Assuming attachments is an array
-  labels: any[]; // Assuming labels is an array
+  attachments: Attachment[]; // Use the specific type
+  labels: Label[];      // Use the specific type
 }
 
 interface TaskDetailsModalProps {
@@ -32,7 +35,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
 
   useEffect(() => {
     if (!taskId) {
-      setTask(null); // Clear task data when modal is closed
+      setTask(null);
       return;
     }
 
@@ -41,10 +44,10 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
       try {
         const response = await getTaskDetails(taskId);
         setTask(response.data);
-      } catch (error) {
+      } catch (error) { // FIX: Use the 'error' variable for logging
         toast.error("Failed to load task details.");
         console.error("Fetch task details error:", error);
-        onClose(); // Close modal on error
+        onClose();
       } finally {
         setIsLoading(false);
       }
@@ -58,20 +61,19 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
       await deleteTask(taskId);
       toast.success("Task deleted!");
       onClose();
-    } catch (error) {
+    } catch (error) { // FIX: Use the 'error' variable for logging
       toast.error("Failed to delete task.");
+      console.error("Delete task error:", error);
     }
   };
 
   return (
     <Dialog open={!!taskId} onOpenChange={onClose}>
       <DialogContent>
-        {/* --- FIX: Add loading and null checks before rendering --- */}
         {isLoading ? (
           <p>Loading details...</p>
         ) : task ? (
           <>
-            {/* --- FIX: Add required DialogHeader for accessibility --- */}
             <DialogHeader>
               <DialogTitle>{task.title}</DialogTitle>
               <DialogDescription>{task.description || "No description provided."}</DialogDescription>
@@ -79,7 +81,6 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
             
             <div className="mt-4">
                 <h3 className="font-semibold my-2">Comments</h3>
-                {/* --- FIX: Safely check comments array --- */}
                 {task.comments && task.comments.length > 0 ? (
                     task.comments.map(comment => (
                         <div key={comment.id} className="text-sm mb-2 p-2 bg-muted/50 rounded-md">
