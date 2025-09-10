@@ -41,3 +41,18 @@ export const declineInvitation = (invitationId) => {
 export const addComment = (taskId, content) => {
     return apiClient.post(`/api/tasks/${taskId}/comments`, { content }, authHeader());
 };
+
+// Get a secure URL from the backend to upload a file to
+export const getAttachmentUploadUrl = (taskId, { fileName, fileType }) => {
+    return apiClient.post(`/api/attachments/presigned-url/tasks/${taskId}`, { fileName, fileType }, authHeader());
+};
+
+// Tell our backend to save the attachment details after a successful upload
+export const addAttachmentRecord = (taskId, attachmentData) => {
+    return apiClient.post(`/api/attachments/record/tasks/${taskId}`, attachmentData, authHeader());
+};
+
+// Delete an attachment
+export const deleteAttachment = (attachmentId) => {
+    return apiClient.delete(`/api/attachments/${attachmentId}`, authHeader());
+};

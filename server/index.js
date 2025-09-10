@@ -37,6 +37,8 @@ const aiRoutes = require('./routes/ai');
 const authRoutes = require('./routes/auth');
 const notificationRoutes = require('./routes/notifications');
 const invitationRoutes = require('./routes/invitations');
+const attachmentRoutes = require('./routes/attachments'); // Import the new routes
+
 require('./config/passport');
 
 // --- Middleware ---
@@ -52,6 +54,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/attachments', attachmentRoutes); // Use the new routes
 
 // --- Socket.io Connection Logic ---
 io.on('connection', (socket) => {

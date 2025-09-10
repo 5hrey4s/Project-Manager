@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { format } from "date-fns"
 import { DayPicker } from "react-day-picker"
 import "react-day-picker/dist/style.css"
 import { cn } from "@/lib/utils"
+import axios from "axios"; // Import axios for direct Supabase upload
+import { supabase } from "../lib/supabaseClient" // <-- THIS IS THE FIX
 
 // --- UI & Icon Imports ---
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog"
@@ -29,10 +31,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
-import { Trash2, CalendarIcon, User, Tag, Paperclip, Flag, Send, Clock, MessageSquare, X } from "lucide-react"
+import { Trash2, CalendarIcon, User, Tag, Paperclip, Flag, Send, Clock, MessageSquare, X, Loader2, Upload } from "lucide-react"
 
 // --- Service Imports ---
-import { getTaskDetails, updateTask, deleteTask, addComment } from "../services/api"
+import { getTaskDetails, updateTask, deleteTask, addComment, deleteAttachment, addAttachmentRecord, getAttachmentUploadUrl } from "../services/api"
 import { useAuth } from "../context/AuthContext"
 
 // --- Type Definitions ---
@@ -42,12 +44,8 @@ interface Comment {
   created_at: string
   author_name: string
 }
-interface Attachment {
-  id: number
-  file_name: string
-  file_url: string
-  uploaded_at: string
-}
+interface Attachment { id: number; file_name: string; file_url: string; user_id: number; }
+
 interface Label {
   id: number
   name: string
@@ -84,6 +82,10 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
   const [startDate, setStartDate] = useState<Date | undefined>()
   const [dueDate, setDueDate] = useState<Date | undefined>()
   const [newComment, setNewComment] = useState("")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => {
     if (!taskId) {
@@ -112,6 +114,61 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
     fetchDetails()
   }, [taskId, onClose])
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0]);
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!selectedFile || !taskId) return;
+    setIsUploading(true);
+
+    try {
+      // 1. Get a signed URL from our backend
+      const { data: presignedData } = await getAttachmentUploadUrl(taskId, {
+        fileName: selectedFile.name,
+        fileType: selectedFile.type,
+      });
+
+      // 2. Upload the file directly to Supabase Storage using the signed URL
+      await axios.put(presignedData.url, selectedFile, {
+        headers: { 'Content-Type': selectedFile.type },
+      });
+
+      // 3. Create the public URL for the file
+      const { data: { publicUrl } } = supabase.storage.from('project-files').getPublicUrl(presignedData.path);
+      
+      // 4. Save the attachment metadata to our database
+      await addAttachmentRecord(taskId, {
+        file_name: selectedFile.name,
+        file_url: publicUrl,
+        file_type: selectedFile.type,
+        file_size: selectedFile.size,
+        file_path: presignedData.path, // Store the path for easy deletion
+      });
+
+      toast.success("File uploaded successfully!");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      toast.error("File upload failed.");
+      console.error("File upload error:", error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: number) => {
+    try {
+      await deleteAttachment(attachmentId);
+      toast.success("Attachment deleted.");
+    } catch (error) {
+      toast.error("Failed to delete attachment.");
+      console.error(`Failed to delete attachment.: ${error}`)
+    }
+  };
+  
   const handleSaveChanges = async () => {
     if (!taskId) return
     try {
@@ -151,6 +208,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
       // Real-time update will be handled by the socket listener on the main page
     } catch (error) {
       toast.error("Failed to post comment.")
+      console.error(`Failed to post comment.: ${error}`)
     }
   }
 
@@ -393,17 +451,33 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                       </div>
 
                       {/* Attachments */}
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 flex items-center">
-                          <Paperclip className="w-4 h-4 mr-2" />
-                          Attachments
-                        </label>
-                        <div className="text-xs text-muted-foreground">
-                          {task.attachments && task.attachments.length > 0
-                            ? `${task.attachments.length} file(s) attached`
-                            : "No attachments"}
-                        </div>
-                      </div>
+                                    {/* --- ATTACHMENTS SECTION --- */}
+              <div>
+                <h4 className="font-semibold text-sm mb-1 flex items-center"><Paperclip className="w-4 h-4 mr-2"/>Attachments</h4>
+                <div className="max-h-32 overflow-y-auto space-y-2 pr-1">
+                  {task.attachments?.map(att => (
+                    <div key={att.id} className="text-xs flex items-center justify-between gap-2 p-1.5 bg-muted/50 rounded">
+                      <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline">{att.file_name}</a>
+                      {user?.id === att.user_id && (
+                        <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => handleDeleteAttachment(att.id)}>
+                          <X className="w-3 h-3"/>
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-2">
+                  <Input type="file" ref={fileInputRef} onChange={handleFileSelect} className="text-xs h-8" />
+                  {selectedFile && (
+                    <Button onClick={handleFileUpload} disabled={isUploading} size="sm" className="w-full mt-2">
+                      {isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                      Upload &quot;{selectedFile.name.substring(0, 20)}...&quot;
+                    </Button>
+                  )}
+                </div>
+              </div>
+ 
                     </div>
                   </ScrollArea>
                 </div>
