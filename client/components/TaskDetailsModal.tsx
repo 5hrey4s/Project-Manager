@@ -186,23 +186,23 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
 
   return (
     <Dialog open={!!taskId} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] p-0 gap-0">
+      <DialogContent className="max-w-6xl max-h-[95vh] w-[95vw] p-0 gap-0">
         {isLoading ? (
           <div className="flex items-center justify-center h-96">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : task ? (
-          <div className="flex flex-col h-full">
-            <DialogHeader className="px-6 py-4 border-b bg-muted/30">
+          <div className="flex flex-col h-full max-h-[95vh]">
+            <DialogHeader className="px-4 sm:px-6 py-4 border-b bg-muted/30 flex-shrink-0">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <Input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="text-xl font-semibold border-none bg-transparent p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="text-lg sm:text-xl font-semibold border-none bg-transparent p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
                     placeholder="Task title..."
                   />
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <Badge variant={getPriorityColor(priority)} className="text-xs">
                       {getPriorityIcon(priority)} {priority || "Medium"}
                     </Badge>
@@ -217,18 +217,18 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                     )}
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={onClose}>
+                <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
             </DialogHeader>
 
-            <div className="flex-1 overflow-hidden">
-              <div className="grid grid-cols-1 lg:grid-cols-3 h-full">
+            <div className="flex-1 overflow-hidden min-h-0">
+              <div className="flex flex-col lg:grid lg:grid-cols-3 h-full">
                 {/* Main Content Area */}
-                <div className="lg:col-span-2 flex flex-col">
-                  <ScrollArea className="flex-1">
-                    <div className="p-6 space-y-6">
+                <div className="lg:col-span-2 flex flex-col min-h-0 order-2 lg:order-1">
+                  <ScrollArea className="flex-1 h-full">
+                    <div className="p-4 sm:p-6 space-y-6">
                       {/* Description */}
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
@@ -236,15 +236,15 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                           value={description}
                           onChange={(e) => setDescription(e.target.value)}
                           placeholder="Add a description..."
-                          className="min-h-[120px] resize-none"
+                          className="min-h-[100px] sm:min-h-[120px] resize-none"
                         />
                       </div>
 
                       <Separator />
 
                       {/* Comments Section */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-4">
+                      <div className="flex flex-col min-h-0">
+                        <div className="flex items-center gap-2 mb-4 flex-shrink-0">
                           <MessageSquare className="w-4 h-4" />
                           <h3 className="text-sm font-medium">Comments</h3>
                           <Badge variant="secondary" className="text-xs">
@@ -252,38 +252,43 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                           </Badge>
                         </div>
 
-                        {/* Comments List */}
-                        <div className="space-y-3 mb-4">
-                          {task.comments?.length > 0 ? (
-                            task.comments.map((comment) => (
-                              <Card key={comment.id} className="border-l-4 border-l-primary/20">
-                                <CardContent className="p-4">
-                                  <div className="flex items-start justify-between mb-2">
-                                    <span className="font-medium text-sm">{comment.author_name}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {format(new Date(comment.created_at), "MMM d, yyyy")}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground">{comment.content}</p>
-                                </CardContent>
-                              </Card>
-                            ))
-                          ) : (
-                            <p className="text-sm text-muted-foreground text-center py-8">
-                              No comments yet. Start the conversation!
-                            </p>
-                          )}
+                        <div className="flex-1 min-h-0 mb-4">
+                          <ScrollArea className="h-[300px] sm:h-[400px] pr-4">
+                            <div className="space-y-3">
+                              {task.comments?.length > 0 ? (
+                                task.comments.map((comment) => (
+                                  <Card key={comment.id} className="border-l-4 border-l-primary/20">
+                                    <CardContent className="p-3 sm:p-4">
+                                      <div className="flex items-start justify-between mb-2 gap-2">
+                                        <span className="font-medium text-sm truncate">{comment.author_name}</span>
+                                        <span className="text-xs text-muted-foreground flex-shrink-0">
+                                          {format(new Date(comment.created_at), "MMM d, yyyy")}
+                                        </span>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground break-words">{comment.content}</p>
+                                    </CardContent>
+                                  </Card>
+                                ))
+                              ) : (
+                                <div className="flex items-center justify-center h-32">
+                                  <p className="text-sm text-muted-foreground text-center">
+                                    No comments yet. Start the conversation!
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </ScrollArea>
                         </div>
 
                         {/* Add Comment Form */}
-                        <form onSubmit={handleSubmitComment} className="flex gap-2">
+                        <form onSubmit={handleSubmitComment} className="flex gap-2 flex-shrink-0">
                           <Input
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
                             placeholder="Write a comment..."
                             className="flex-1"
                           />
-                          <Button type="submit" size="icon" disabled={!newComment.trim()}>
+                          <Button type="submit" size="icon" disabled={!newComment.trim()} className="flex-shrink-0">
                             <Send className="w-4 h-4" />
                           </Button>
                         </form>
@@ -292,10 +297,9 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                   </ScrollArea>
                 </div>
 
-                {/* Sidebar */}
-                <div className="border-l bg-muted/20">
-                  <ScrollArea className="h-full">
-                    <div className="p-6 space-y-6">
+                <div className="border-l-0 lg:border-l bg-muted/20 border-b lg:border-b-0 order-1 lg:order-2">
+                  <ScrollArea className="h-[300px] lg:h-full">
+                    <div className="p-4 sm:p-6 space-y-4 lg:space-y-6">
                       {/* Priority */}
                       <div>
                         <label className="text-sm font-medium text-muted-foreground mb-2 flex items-center">
@@ -330,12 +334,12 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                               <Button
                                 variant="outline"
                                 className={cn(
-                                  "w-full justify-start text-left font-normal",
+                                  "w-full justify-start text-left font-normal text-xs sm:text-sm",
                                   !startDate && "text-muted-foreground",
                                 )}
                               >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+                                <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                                <span className="truncate">{startDate ? format(startDate, "PPP") : "Pick a date"}</span>
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
@@ -354,12 +358,12 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                               <Button
                                 variant="outline"
                                 className={cn(
-                                  "w-full justify-start text-left font-normal",
+                                  "w-full justify-start text-left font-normal text-xs sm:text-sm",
                                   !dueDate && "text-muted-foreground",
                                 )}
                               >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
+                                <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                                <span className="truncate">{dueDate ? format(dueDate, "PPP") : "Pick a date"}</span>
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
@@ -406,40 +410,43 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
               </div>
             </div>
 
-            <div className="border-t bg-muted/30 px-6 py-4">
-              <div className="flex items-center justify-between">
+            <div className="border-t bg-muted/30 px-4 sm:px-6 py-4 flex-shrink-0">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-destructive hover:text-destructive bg-transparent"
+                      className="text-destructive hover:text-destructive bg-transparent w-full sm:w-auto"
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete Task
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent className="w-[95vw] max-w-md">
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete Task</AlertDialogTitle>
                       <AlertDialogDescription>
                         Are you sure you want to delete this task? This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                      <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        className="bg-destructive hover:bg-destructive/90 w-full sm:w-auto"
+                      >
                         Delete Task
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
 
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={onClose}>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button variant="outline" size="sm" onClick={onClose} className="flex-1 sm:flex-none bg-transparent">
                     Cancel
                   </Button>
-                  <Button size="sm" onClick={handleSaveChanges}>
+                  <Button size="sm" onClick={handleSaveChanges} className="flex-1 sm:flex-none">
                     Save Changes
                   </Button>
                 </div>
