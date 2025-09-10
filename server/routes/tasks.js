@@ -25,5 +25,8 @@ router.post('/:taskId/comments', taskController.addComment);
 // DELETE /api/tasks/:taskId - Soft delete a task
 router.delete('/:taskId', taskController.deleteTask);
 
+// PATCH /api/tasks/:taskId/assign - Assign a task to a user
+router.patch('/:taskId/assign', auth, taskController.assignTask);
+
 
 module.exports = router;
