@@ -158,35 +158,43 @@ exports.getTaskDetails = async (req, res) => {
     try {
         const { taskId } = req.params;
 
-        const [taskResult, commentsResult] = await Promise.all([
+        // Fetch task, comments, and attachments in parallel
+        const [taskResult, commentsResult, attachmentsResult] = await Promise.all([
             pool.query(`
-        SELECT t.*, u.username as assignee_name 
-        FROM tasks t 
-        LEFT JOIN users u ON t.assignee_id = u.id 
-        WHERE t.id = $1
-      `, [taskId]),
-            // *** FIX: Correctly reference user_id and join with users table ***
+                SELECT t.*, u.username as assignee_name 
+                FROM tasks t 
+                LEFT JOIN users u ON t.assignee_id = u.id 
+                WHERE t.id = $1
+            `, [taskId]),
             pool.query(`
-        SELECT c.id, c.content, c.created_at, u.username as author_name 
-        FROM comments c 
-        JOIN users u ON c.user_id = u.id 
-        WHERE c.task_id = $1 
-        ORDER BY c.created_at ASC
-      `, [taskId]),
+                SELECT c.id, c.content, c.created_at, u.username as author_name 
+                FROM comments c 
+                JOIN users u ON c.user_id = u.id 
+                WHERE c.task_id = $1 
+                ORDER BY c.created_at ASC
+            `, [taskId]),
+            pool.query(`
+                SELECT id, file_name, file_url, user_id
+                FROM attachments 
+                WHERE task_id = $1 
+                ORDER BY created_at ASC
+            `, [taskId])
         ]);
 
         if (taskResult.rows.length === 0) {
             return res.status(404).json({ msg: 'Task not found' });
         }
 
+        // Combine all results into a single object
         const taskDetails = {
             ...taskResult.rows[0],
             comments: commentsResult.rows,
+            attachments: attachmentsResult.rows, // Add the attachments array
         };
 
         res.json(taskDetails);
     } catch (err) {
-        console.error(err.message);
+        console.error('Error getting task details:', err.message);
         res.status(500).send('Server Error');
     }
 };
