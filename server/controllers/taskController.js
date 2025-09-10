@@ -19,21 +19,23 @@ exports.getTasksForProject = async (req, res) => {
 
 exports.createTask = async (req, res) => {
     try {
-        const { projectId, title, description, status } = req.body;
-        const creatorId = req.user.id; // Comes from the auth middleware
+        // FIX: Destructure all possible fields from the request body
+        const { projectId, title, description, status, start_date, due_date } = req.body;
+        const creatorId = req.user.id;
 
         if (!title || !projectId) {
             return res.status(400).json({ msg: 'Project ID and title are required.' });
         }
 
+        // FIX: Update the INSERT query to include the new date columns
         const newTaskResult = await pool.query(
-            `INSERT INTO tasks (project_id, title, description, status, creator_id)
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [projectId, title, description || null, status || 'To Do', creatorId]
+            `INSERT INTO tasks (project_id, title, description, status, creator_id, start_date, due_date)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [projectId, title, description || null, status || 'To Do', creatorId, start_date || null, due_date || null]
         );
         const newTask = newTaskResult.rows[0];
 
-        // This part now works because getIO is defined
+        // This will now work correctly
         const io = getIO();
         io.to(`project-${projectId}`).emit('task_created', newTask);
 
@@ -43,6 +45,7 @@ exports.createTask = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
 
 
 
