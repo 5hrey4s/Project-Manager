@@ -9,7 +9,7 @@ import "react-day-picker/dist/style.css"
 import { cn } from "@/lib/utils"
 
 // --- UI & Icon Imports ---
-import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -52,7 +52,7 @@ import {
 
 // --- Service Imports ---
 import { getTaskDetails, updateTask, deleteTask, addComment } from "../services/api"
-import { useAuth } from "../context/AuthContext"
+// import { useAuth } from "../context/AuthContext"
 
 // --- Type Definitions ---
 interface Comment {
@@ -193,8 +193,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
       if (fileInputRef.current) fileInputRef.current.value = ""
     } catch (error) {
       toast.error("File upload failed.")
-      console.error(`File upload failed.: ${error}`)
-
+      console.error(`File upload failed: ${error}`)
     } finally {
       setIsUploading(false)
     }
@@ -251,6 +250,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
         ) : task ? (
           <div className="flex flex-col h-full max-h-[98vh]">
             <DialogHeader className="px-3 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-background to-muted/30 flex-shrink-0">
+              <DialogTitle className="sr-only">Task Details: {task.title}</DialogTitle>
               <div className="flex items-start justify-between gap-2 sm:gap-4">
                 <div className="flex-1 min-w-0">
                   <Input
@@ -348,7 +348,13 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                                   <div className="flex items-start justify-between mb-2 gap-2">
                                     <span className="font-medium text-sm truncate">{comment.author_name}</span>
                                     <span className="text-xs text-muted-foreground flex-shrink-0">
-                                      {format(new Date(comment.created_at), "MMM d")}
+                                      {(() => {
+                                        try {
+                                          return format(new Date(comment.created_at), "MMM d")
+                                        } catch {
+                                          return "Invalid date"
+                                        }
+                                      })()}
                                     </span>
                                   </div>
                                   <p className="text-sm text-muted-foreground break-words">{comment.content}</p>
@@ -415,7 +421,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                         <div className="space-y-4">
                           <div>
                             <label className="text-sm font-medium text-muted-foreground mb-2 flex items-center">
-                              <Clock className="w-4 h-4 mr-2" />
+                              <CalendarIcon className="w-4 h-4 mr-2" />
                               Start Date
                             </label>
                             <Popover>
@@ -556,7 +562,13 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                                       <div className="flex items-start justify-between mb-2 gap-2">
                                         <span className="font-medium text-sm">{comment.author_name}</span>
                                         <span className="text-xs text-muted-foreground flex-shrink-0">
-                                          {format(new Date(comment.created_at), "MMM d, yyyy 'at' h:mm a")}
+                                          {(() => {
+                                            try {
+                                              return format(new Date(comment.created_at), "MMM d, yyyy 'at' h:mm a")
+                                            } catch {
+                                              return "Invalid date"
+                                            }
+                                          })()}
                                         </span>
                                       </div>
                                       <p className="text-sm text-muted-foreground break-words leading-relaxed">
@@ -712,7 +724,13 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                                         <div className="flex-1 min-w-0">
                                           <p className="text-sm truncate">{attachment.file_name}</p>
                                           <p className="text-xs text-muted-foreground">
-                                            {format(new Date(attachment.uploaded_at), "MMM d, yyyy")}
+                                            {(() => {
+                                              try {
+                                                return format(new Date(attachment.uploaded_at), "MMM d, yyyy")
+                                              } catch {
+                                                return "Invalid date"
+                                              }
+                                            })()}
                                           </p>
                                         </div>
                                       </div>
