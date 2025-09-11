@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -195,8 +194,9 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
       setSelectedFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ""
     } catch (error) {
-      toast.error("File upload failed.")
-      console.error(`File upload failed: ${error}`)
+      toast.error("File upload failed.")     
+       console.error(`File upload failed:${error}`)
+
     } finally {
       setIsUploading(false)
     }
@@ -245,7 +245,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
 
   return (
     <Dialog open={!!taskId} onOpenChange={onClose}>
-      <DialogContent className="max-w-[98vw] max-h-[98vh] w-[98vw] h-[98vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-[98vw] max-h-[95vh] w-[98vw] h-[95vh] p-0 gap-0 flex flex-col">
         {isLoading ? (
           <div className="flex items-center justify-center h-96">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -293,7 +293,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
               </div>
             </DialogHeader>
 
-            <div className="flex-1 overflow-hidden min-h-0">
+            <div className="flex-1 min-h-0 overflow-hidden">
               {/* Mobile: Full-screen tabs */}
               <div className="block lg:hidden h-full">
                 <Tabs defaultValue="details" className="flex flex-col h-full">
@@ -309,7 +309,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="details" className="flex-1 mt-0 overflow-hidden">
+                  <TabsContent value="details" className="flex-1 mt-0 min-h-0">
                     <ScrollArea className="h-full">
                       <div className="p-4 space-y-6">
                         <div>
@@ -325,41 +325,43 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                     </ScrollArea>
                   </TabsContent>
 
-                  <TabsContent value="comments" className="flex-1 mt-0 overflow-hidden">
+                  <TabsContent value="comments" className="flex-1 mt-0 min-h-0">
                     <div className="flex flex-col h-full">
-                      <ScrollArea className="flex-1">
-                        <div className="p-4 space-y-4">
+                      <ScrollArea className="flex-1 min-h-0">
+                        <div className="p-4 space-y-3">
                           {task.comments?.length > 0 ? (
                             task.comments.map((comment) => (
-                              <Card key={comment.id} className="border-l-4 border-l-primary/30">
-                                <CardContent className="p-4">
-                                  <div className="flex items-start justify-between mb-2 gap-2">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                        <User className="w-4 h-4 text-primary" />
-                                      </div>
-                                      <span className="font-medium text-sm">{comment.author_name}</span>
+                              /* Made comment cards more compact */
+                              <div
+                                key={comment.id}
+                                className="border-l-2 border-l-primary/30 pl-3 py-2 bg-muted/20 rounded-r-lg"
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                                      <User className="w-3 h-3 text-primary" />
                                     </div>
-                                    <span className="text-xs text-muted-foreground">
-                                      {(() => {
-                                        try {
-                                          return format(new Date(comment.created_at), "MMM d")
-                                        } catch {
-                                          return "Invalid date"
-                                        }
-                                      })()}
-                                    </span>
+                                    <span className="font-medium text-xs">{comment.author_name}</span>
                                   </div>
-                                  <p className="text-sm text-foreground/80 break-words leading-relaxed pl-10">
-                                    {comment.content}
-                                  </p>
-                                </CardContent>
-                              </Card>
+                                  <span className="text-xs text-muted-foreground">
+                                    {(() => {
+                                      try {
+                                        return format(new Date(comment.created_at), "MMM d")
+                                      } catch {
+                                        return "Invalid date"
+                                      }
+                                    })()}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-foreground/80 break-words leading-relaxed pl-8">
+                                  {comment.content}
+                                </p>
+                              </div>
                             ))
                           ) : (
                             <div className="flex items-center justify-center h-48">
                               <div className="text-center">
-                                <MessageSquare className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
+                                <MessageSquare className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
                                 <p className="text-sm text-muted-foreground">No comments yet</p>
                               </div>
                             </div>
@@ -367,7 +369,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                         </div>
                       </ScrollArea>
 
-                      <div className="p-4 border-t bg-muted/20">
+                      <div className="p-4 border-t bg-muted/20 flex-shrink-0">
                         <form onSubmit={handleSubmitComment} className="flex gap-2">
                           <Input
                             value={newComment}
@@ -383,7 +385,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="properties" className="flex-1 mt-0 overflow-hidden">
+                  <TabsContent value="properties" className="flex-1 mt-0 min-h-0">
                     <ScrollArea className="h-full">
                       <div className="p-3 space-y-4">
                         {/* Priority */}
@@ -516,229 +518,237 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                 <div
                   className={cn(
                     "flex flex-col min-h-0 transition-all duration-300",
-                    sidebarOpen ? "w-[calc(100%-400px)]" : "w-full",
+                    sidebarOpen ? "w-[calc(100%-380px)]" : "w-full",
                   )}
                 >
-                  <ScrollArea className="flex-1 h-full">
-                    <div className="p-8 max-w-4xl mx-auto space-y-8">
-                      {/* Description Section */}
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-5 h-5 text-primary" />
-                          <h3 className="text-lg font-semibold">Description</h3>
-                        </div>
-                        <Textarea
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          placeholder="Add a detailed description of the task..."
-                          className="min-h-[200px] resize-none text-sm leading-relaxed border-2 focus:border-primary/50"
-                        />
-                      </div>
-
-                      <Separator className="my-8" />
-
-                      {/* Comments Section */}
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-3">
-                          <MessageSquare className="w-6 h-6 text-primary" />
-                          <h3 className="text-lg font-semibold">Comments & Activity</h3>
-                          <Badge variant="secondary" className="text-sm px-3 py-1">
-                            {task.comments?.length || 0}
-                          </Badge>
-                        </div>
-
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <ScrollArea className="h-full">
+                      <div className="p-8 max-w-4xl mx-auto space-y-8">
+                        {/* Description Section */}
                         <div className="space-y-4">
-                          {task.comments?.length > 0 ? (
-                            <ScrollArea className="h-[500px] w-full">
-                              <div className="space-y-4 pr-4">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-primary" />
+                            <h3 className="text-lg font-semibold">Description</h3>
+                          </div>
+                          <Textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="Add a detailed description of the task..."
+                            className="min-h-[200px] resize-none text-sm leading-relaxed border-2 focus:border-primary/50"
+                          />
+                        </div>
+
+                        <Separator className="my-8" />
+
+                        {/* Comments Section */}
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3">
+                            <MessageSquare className="w-6 h-6 text-primary" />
+                            <h3 className="text-lg font-semibold">Comments & Activity</h3>
+                            <Badge variant="secondary" className="text-sm px-3 py-1">
+                              {task.comments?.length || 0}
+                            </Badge>
+                          </div>
+
+                          <div className="space-y-4">
+                            {task.comments?.length > 0 ? (
+                              /* Fixed comments scrolling with proper height constraint */
+                              <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2">
                                 {task.comments.map((comment) => (
-                                  <Card
+                                  /* Made desktop comment cards more compact */
+                                  <div
                                     key={comment.id}
-                                    className="border-l-4 border-l-primary/30 hover:shadow-lg transition-all duration-200 hover:border-l-primary/60"
+                                    className="border-l-3 border-l-primary/30 pl-4 py-3 bg-muted/10 rounded-r-lg hover:bg-muted/20 transition-colors"
                                   >
-                                    <CardContent className="p-6">
-                                      <div className="flex items-start justify-between mb-4 gap-4">
-                                        <div className="flex items-center gap-3">
-                                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                                            <User className="w-5 h-5 text-primary" />
-                                          </div>
-                                          <div>
-                                            <span className="font-semibold text-sm">{comment.author_name}</span>
-                                            <p className="text-xs text-muted-foreground">
-                                              {(() => {
-                                                try {
-                                                  return format(new Date(comment.created_at), "MMM d, yyyy 'at' h:mm a")
-                                                } catch {
-                                                  return "Invalid date"
-                                                }
-                                              })()}
-                                            </p>
-                                          </div>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                                          <User className="w-4 h-4 text-primary" />
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-sm">{comment.author_name}</span>
+                                          <p className="text-xs text-muted-foreground">
+                                            {(() => {
+                                              try {
+                                                return format(new Date(comment.created_at), "MMM d, h:mm a")
+                                              } catch {
+                                                return "Invalid date"
+                                              }
+                                            })()}
+                                          </p>
                                         </div>
                                       </div>
-                                      <p className="text-sm text-foreground/90 break-words leading-relaxed pl-13">
-                                        {comment.content}
-                                      </p>
-                                    </CardContent>
-                                  </Card>
+                                    </div>
+                                    <p className="text-sm text-foreground/90 break-words leading-relaxed pl-9">
+                                      {comment.content}
+                                    </p>
+                                  </div>
                                 ))}
                               </div>
-                            </ScrollArea>
-                          ) : (
-                            <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted-foreground/20 rounded-xl">
-                              <div className="text-center">
-                                <MessageSquare className="w-20 h-20 text-muted-foreground/20 mx-auto mb-6" />
-                                <p className="text-lg font-medium text-muted-foreground mb-2">No comments yet</p>
-                                <p className="text-sm text-muted-foreground/70">
-                                  Start the conversation and share your thoughts
-                                </p>
+                            ) : (
+                              <div className="flex items-center justify-center h-48 border-2 border-dashed border-muted-foreground/20 rounded-xl">
+                                <div className="text-center">
+                                  <MessageSquare className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
+                                  <p className="text-lg font-medium text-muted-foreground mb-2">No comments yet</p>
+                                  <p className="text-sm text-muted-foreground/70">
+                                    Start the conversation and share your thoughts
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
-                          <Card className="border-2 border-dashed border-primary/30 hover:border-primary/50 transition-colors bg-gradient-to-r from-primary/5 to-transparent">
-                            <CardContent className="p-6">
-                              <form onSubmit={handleSubmitComment} className="flex gap-4">
+                            <div className="border-2 border-dashed border-primary/30 hover:border-primary/50 transition-colors bg-gradient-to-r from-primary/5 to-transparent rounded-lg p-4">
+                              <form onSubmit={handleSubmitComment} className="flex gap-3">
                                 <Input
                                   value={newComment}
                                   onChange={(e) => setNewComment(e.target.value)}
-                                  placeholder="Share your thoughts, ask questions, or provide updates..."
-                                  className="flex-1 border-0 bg-background/50 focus-visible:ring-2 focus-visible:ring-primary/30 text-sm h-12"
+                                  placeholder="Share your thoughts..."
+                                  className="flex-1 border-0 bg-background/50 focus-visible:ring-2 focus-visible:ring-primary/30 text-sm h-10"
                                 />
                                 <Button
                                   type="submit"
                                   size="icon"
                                   disabled={!newComment.trim()}
-                                  className="h-12 w-12 bg-primary hover:bg-primary/90"
+                                  className="h-10 w-10 bg-primary hover:bg-primary/90"
                                 >
-                                  <Send className="w-5 h-5" />
+                                  <Send className="w-4 h-4" />
                                 </Button>
                               </form>
-                            </CardContent>
-                          </Card>
+                            </div>
+                          </div>
                         </div>
+                        <div className="h-8" />
                       </div>
-                      <div className="h-8" />
-                    </div>
-                  </ScrollArea>
+                    </ScrollArea>
+                  </div>
                 </div>
 
                 {sidebarOpen && (
-                  <div className="w-[400px] bg-gradient-to-b from-muted/30 via-muted/20 to-muted/10 border-l shadow-xl flex flex-col">
-                    <ScrollArea className="flex-1 h-full">
-                      <div className="p-6 space-y-6">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold">Properties</h3>
-                          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} className="h-8 w-8">
-                            <ChevronRight className="w-4 h-4" />
-                          </Button>
-                        </div>
+                  /* Fixed sidebar scrolling with proper height */
+                  <div className="w-[380px] bg-gradient-to-b from-muted/30 via-muted/20 to-muted/10 border-l shadow-xl flex flex-col">
+                    <div className="flex-1 min-h-0 overflow-hidden">
+                      <ScrollArea className="h-full">
+                        <div className="p-6 space-y-6">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold">Properties</h3>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setSidebarOpen(false)}
+                              className="h-8 w-8"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
 
-                        {/* Priority */}
-                        <div className="space-y-3">
-                          <label className="text-sm font-medium text-muted-foreground flex items-center">
-                            <Flag className="w-4 h-4 mr-2" />
-                            Priority
-                          </label>
-                          <Select
-                            value={priority || "Medium"}
-                            onValueChange={(value: string) => setPriority(value as TaskDetails["priority"])}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Set priority" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Urgent">🔴 Urgent</SelectItem>
-                              <SelectItem value="High">🟠 High</SelectItem>
-                              <SelectItem value="Medium">🟡 Medium</SelectItem>
-                              <SelectItem value="Low">🟢 Low</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Dates */}
-                        <div className="space-y-4">
+                          {/* Priority */}
                           <div className="space-y-3">
                             <label className="text-sm font-medium text-muted-foreground flex items-center">
-                              <Clock className="w-4 h-4 mr-2" />
-                              Start Date
+                              <Flag className="w-4 h-4 mr-2" />
+                              Priority
                             </label>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !startDate && "text-muted-foreground",
-                                  )}
-                                >
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {startDate ? format(startDate, "PPP") : "Pick a date"}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <DayPicker mode="single" selected={startDate} onSelect={setStartDate} />
-                              </PopoverContent>
-                            </Popover>
+                            <Select
+                              value={priority || "Medium"}
+                              onValueChange={(value: string) => setPriority(value as TaskDetails["priority"])}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Set priority" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Urgent">🔴 Urgent</SelectItem>
+                                <SelectItem value="High">🟠 High</SelectItem>
+                                <SelectItem value="Medium">🟡 Medium</SelectItem>
+                                <SelectItem value="Low">🟢 Low</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
 
+                          {/* Dates */}
+                          <div className="space-y-4">
+                            <div className="space-y-3">
+                              <label className="text-sm font-medium text-muted-foreground flex items-center">
+                                <Clock className="w-4 h-4 mr-2" />
+                                Start Date
+                              </label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal",
+                                      !startDate && "text-muted-foreground",
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {startDate ? format(startDate, "PPP") : "Pick a date"}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <DayPicker mode="single" selected={startDate} onSelect={setStartDate} />
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+
+                            <div className="space-y-3">
+                              <label className="text-sm font-medium text-muted-foreground flex items-center">
+                                <CalendarIcon className="w-4 h-4 mr-2" />
+                                Due Date
+                              </label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal",
+                                      !dueDate && "text-muted-foreground",
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dueDate ? format(dueDate, "PPP") : "Pick a date"}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <DayPicker mode="single" selected={dueDate} onSelect={setDueDate} />
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          </div>
+
+                          {/* Labels */}
                           <div className="space-y-3">
                             <label className="text-sm font-medium text-muted-foreground flex items-center">
-                              <CalendarIcon className="w-4 h-4 mr-2" />
-                              Due Date
+                              <Tag className="w-4 h-4 mr-2" />
+                              Labels
                             </label>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !dueDate && "text-muted-foreground",
-                                  )}
-                                >
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {dueDate ? format(dueDate, "PPP") : "Pick a date"}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <DayPicker mode="single" selected={dueDate} onSelect={setDueDate} />
-                              </PopoverContent>
-                            </Popover>
+                            <div className="flex flex-wrap gap-2">
+                              {task.labels && task.labels.length > 0 ? (
+                                task.labels.map((label) => (
+                                  <Badge key={label.id} variant="secondary" className="text-xs px-2 py-1">
+                                    {label.name}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <p className="text-sm text-muted-foreground italic">No labels assigned</p>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Labels */}
-                        <div className="space-y-3">
-                          <label className="text-sm font-medium text-muted-foreground flex items-center">
-                            <Tag className="w-4 h-4 mr-2" />
-                            Labels
-                          </label>
-                          <div className="flex flex-wrap gap-2">
-                            {task.labels && task.labels.length > 0 ? (
-                              task.labels.map((label) => (
-                                <Badge key={label.id} variant="secondary" className="text-xs px-2 py-1">
-                                  {label.name}
-                                </Badge>
-                              ))
-                            ) : (
-                              <p className="text-sm text-muted-foreground italic">No labels assigned</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Attachments */}
-                        <div className="space-y-3">
-                          <label className="text-sm font-medium text-muted-foreground flex items-center">
-                            <Paperclip className="w-4 h-4 mr-2" />
-                            Attachments ({task.attachments?.length || 0})
-                          </label>
-
+                          {/* Attachments */}
                           <div className="space-y-3">
-                            {task.attachments && task.attachments.length > 0 && (
-                              <ScrollArea className="max-h-[300px] w-full">
-                                <div className="space-y-2 pr-2">
+                            <label className="text-sm font-medium text-muted-foreground flex items-center">
+                              <Paperclip className="w-4 h-4 mr-2" />
+                              Attachments ({task.attachments?.length || 0})
+                            </label>
+
+                            <div className="space-y-3">
+                              {task.attachments && task.attachments.length > 0 && (
+                                /* Fixed attachments scrolling with proper height */
+                                <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2">
                                   {task.attachments.map((attachment) => (
-                                    <Card key={attachment.id} className="p-3 hover:shadow-sm transition-shadow">
+                                    <div
+                                      key={attachment.id}
+                                      className="p-3 border rounded-lg hover:shadow-sm transition-shadow bg-background/50"
+                                    >
                                       <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                           {getFileIcon(attachment.file_name)}
@@ -761,34 +771,39 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                                           <Download className="w-4 h-4" />
                                         </Button>
                                       </div>
-                                    </Card>
+                                    </div>
                                   ))}
                                 </div>
-                              </ScrollArea>
-                            )}
-
-                            <div className="space-y-2">
-                              <Input type="file" ref={fileInputRef} onChange={handleFileSelect} className="text-sm" />
-                              {selectedFile && (
-                                <Button onClick={handleFileUpload} disabled={isUploading} size="sm" className="w-full">
-                                  {isUploading ? (
-                                    <>
-                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                      Uploading...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Upload className="w-4 h-4 mr-2" />
-                                      Upload &quot;{selectedFile.name.substring(0, 15)}...&quot;
-                                    </>
-                                  )}
-                                </Button>
                               )}
+
+                              <div className="space-y-2">
+                                <Input type="file" ref={fileInputRef} onChange={handleFileSelect} className="text-sm" />
+                                {selectedFile && (
+                                  <Button
+                                    onClick={handleFileUpload}
+                                    disabled={isUploading}
+                                    size="sm"
+                                    className="w-full"
+                                  >
+                                    {isUploading ? (
+                                      <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                        Uploading...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Upload className="w-4 h-4 mr-2" />
+                                        Upload &quot;{selectedFile.name.substring(0, 15)}...&quot;
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </ScrollArea>
+                      </ScrollArea>
+                    </div>
                   </div>
                 )}
               </div>
