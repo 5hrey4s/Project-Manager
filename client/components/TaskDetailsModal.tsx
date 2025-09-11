@@ -519,7 +519,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                     sidebarOpen ? "w-[calc(100%-400px)]" : "w-full",
                   )}
                 >
-                  <ScrollArea className="flex-1">
+                  <ScrollArea className="flex-1 h-full">
                     <div className="p-8 max-w-4xl mx-auto space-y-8">
                       {/* Description Section */}
                       <div className="space-y-4">
@@ -549,39 +549,41 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
 
                         <div className="space-y-4">
                           {task.comments?.length > 0 ? (
-                            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                              {task.comments.map((comment) => (
-                                <Card
-                                  key={comment.id}
-                                  className="border-l-4 border-l-primary/30 hover:shadow-lg transition-all duration-200 hover:border-l-primary/60"
-                                >
-                                  <CardContent className="p-6">
-                                    <div className="flex items-start justify-between mb-4 gap-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                                          <User className="w-5 h-5 text-primary" />
-                                        </div>
-                                        <div>
-                                          <span className="font-semibold text-sm">{comment.author_name}</span>
-                                          <p className="text-xs text-muted-foreground">
-                                            {(() => {
-                                              try {
-                                                return format(new Date(comment.created_at), "MMM d, yyyy 'at' h:mm a")
-                                              } catch {
-                                                return "Invalid date"
-                                              }
-                                            })()}
-                                          </p>
+                            <ScrollArea className="h-[500px] w-full">
+                              <div className="space-y-4 pr-4">
+                                {task.comments.map((comment) => (
+                                  <Card
+                                    key={comment.id}
+                                    className="border-l-4 border-l-primary/30 hover:shadow-lg transition-all duration-200 hover:border-l-primary/60"
+                                  >
+                                    <CardContent className="p-6">
+                                      <div className="flex items-start justify-between mb-4 gap-4">
+                                        <div className="flex items-center gap-3">
+                                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                                            <User className="w-5 h-5 text-primary" />
+                                          </div>
+                                          <div>
+                                            <span className="font-semibold text-sm">{comment.author_name}</span>
+                                            <p className="text-xs text-muted-foreground">
+                                              {(() => {
+                                                try {
+                                                  return format(new Date(comment.created_at), "MMM d, yyyy 'at' h:mm a")
+                                                } catch {
+                                                  return "Invalid date"
+                                                }
+                                              })()}
+                                            </p>
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
-                                    <p className="text-sm text-foreground/90 break-words leading-relaxed pl-13">
-                                      {comment.content}
-                                    </p>
-                                  </CardContent>
-                                </Card>
-                              ))}
-                            </div>
+                                      <p className="text-sm text-foreground/90 break-words leading-relaxed pl-13">
+                                        {comment.content}
+                                      </p>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            </ScrollArea>
                           ) : (
                             <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted-foreground/20 rounded-xl">
                               <div className="text-center">
@@ -616,13 +618,14 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                           </Card>
                         </div>
                       </div>
+                      <div className="h-8" />
                     </div>
                   </ScrollArea>
                 </div>
 
                 {sidebarOpen && (
-                  <div className="w-[400px] bg-gradient-to-b from-muted/30 via-muted/20 to-muted/10 border-l shadow-xl">
-                    <ScrollArea className="h-full">
+                  <div className="w-[400px] bg-gradient-to-b from-muted/30 via-muted/20 to-muted/10 border-l shadow-xl flex flex-col">
+                    <ScrollArea className="flex-1 h-full">
                       <div className="p-6 space-y-6">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-semibold">Properties</h3>
@@ -732,34 +735,36 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
 
                           <div className="space-y-3">
                             {task.attachments && task.attachments.length > 0 && (
-                              <div className="space-y-2 max-h-48 overflow-y-auto">
-                                {task.attachments.map((attachment) => (
-                                  <Card key={attachment.id} className="p-3 hover:shadow-sm transition-shadow">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                                        {getFileIcon(attachment.file_name)}
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-medium truncate" title={attachment.file_name}>
-                                            {attachment.file_name}
-                                          </p>
-                                          <p className="text-xs text-muted-foreground">
-                                            {(() => {
-                                              try {
-                                                return format(new Date(attachment.uploaded_at), "MMM d")
-                                              } catch {
-                                                return "Invalid date"
-                                              }
-                                            })()}
-                                          </p>
+                              <ScrollArea className="max-h-[300px] w-full">
+                                <div className="space-y-2 pr-2">
+                                  {task.attachments.map((attachment) => (
+                                    <Card key={attachment.id} className="p-3 hover:shadow-sm transition-shadow">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                          {getFileIcon(attachment.file_name)}
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate" title={attachment.file_name}>
+                                              {attachment.file_name}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              {(() => {
+                                                try {
+                                                  return format(new Date(attachment.uploaded_at), "MMM d")
+                                                } catch {
+                                                  return "Invalid date"
+                                                }
+                                              })()}
+                                            </p>
+                                          </div>
                                         </div>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                          <Download className="w-4 h-4" />
+                                        </Button>
                                       </div>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                                        <Download className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  </Card>
-                                ))}
-                              </div>
+                                    </Card>
+                                  ))}
+                                </div>
+                              </ScrollArea>
                             )}
 
                             <div className="space-y-2">
