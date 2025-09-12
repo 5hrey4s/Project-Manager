@@ -159,7 +159,7 @@ exports.getTaskDetails = async (req, res) => {
         const { taskId } = req.params;
 
         // Fetch task, comments, and attachments in parallel
-        const [taskResult, commentsResult, attachmentsResult] = await Promise.all([
+        const [taskResult, commentsResult, attachmentsResult, githubLinksResult] = await Promise.all([
             pool.query(`
                 SELECT t.*, u.username as assignee_name 
                 FROM tasks t 
@@ -178,7 +178,9 @@ exports.getTaskDetails = async (req, res) => {
                 FROM attachments 
                 WHERE task_id = $1 
                 ORDER BY created_at ASC
-            `, [taskId])
+            `, [taskId]), 
+            pool.query('SELECT * FROM github_task_links WHERE task_id = $1', [taskId]) // <-- ADD THIS QUERY
+
         ]);
 
         if (taskResult.rows.length === 0) {
@@ -190,6 +192,8 @@ exports.getTaskDetails = async (req, res) => {
             ...taskResult.rows[0],
             comments: commentsResult.rows,
             attachments: attachmentsResult.rows, // Add the attachments array
+            github_links: githubLinksResult.rows, // <-- ADD THIS PROPERTY
+
         };
 
         res.json(taskDetails);

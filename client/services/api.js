@@ -56,3 +56,7 @@ export const addAttachmentRecord = (taskId, attachmentData) => {
 export const deleteAttachment = (attachmentId) => {
     return apiClient.delete(`/api/attachments/${attachmentId}`, authHeader());
 };
+
+export const linkTaskToGithub = (taskId, prUrl) => {
+    return apiClient.post(`/api/integrations/tasks/${taskId}/link-github`, { prUrl }, authHeader());
+};

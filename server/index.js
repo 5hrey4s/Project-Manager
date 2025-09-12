@@ -38,6 +38,7 @@ const authRoutes = require('./routes/auth');
 const notificationRoutes = require('./routes/notifications');
 const invitationRoutes = require('./routes/invitations');
 const attachmentRoutes = require('./routes/attachments'); // Import the new routes
+const integrationRoutes = require('./routes/integrations'); // Import the new routes
 
 require('./config/passport');
 
@@ -55,6 +56,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/attachments', attachmentRoutes); // Use the new routes
+app.use('/api/integrations', integrationRoutes); // Use the new routes
 
 // --- Socket.io Connection Logic ---
 io.on('connection', (socket) => {

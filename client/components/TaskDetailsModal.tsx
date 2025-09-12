@@ -48,11 +48,11 @@ import {
   ImageIcon,
   File,
   ChevronRight,
-  Settings,
+  Settings,Github
 } from "lucide-react"
 
 // --- Service Imports ---
-import { getTaskDetails, updateTask, deleteTask, addComment } from "../services/api"
+import { getTaskDetails, updateTask, deleteTask, addComment, linkTaskToGithub } from "../services/api"
 // import { useAuth } from "../context/AuthContext"
 
 // --- Type Definitions ---
@@ -85,12 +85,17 @@ interface TaskDetails {
   comments: Comment[]
   attachments: Attachment[]
   labels: Label[]
+    github_links: GithubLink[]; // <-- Add this
+
 }
 
 interface TaskDetailsModalProps {
   taskId: number | null
   onClose: () => void
 }
+
+interface GithubLink { id: number; github_item_url: string; }
+
 
 export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalProps) {
   // const { user } = useAuth()
@@ -109,6 +114,20 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
   const [dueDate, setDueDate] = useState<Date | undefined>()
   const [newComment, setNewComment] = useState("")
 
+  const [githubPrUrl, setGithubPrUrl] = useState("");
+
+  const handleLinkToGithub = async () => {
+        if (!taskId || !githubPrUrl.trim()) return;
+        try {
+            await linkTaskToGithub(taskId, githubPrUrl);
+            toast.success("Task successfully linked to Pull Request!");
+            setGithubPrUrl("");
+            // You'll need a way to refetch task details to show the new link instantly
+        } catch (error) {
+            toast.error("Failed to link Pull Request.");
+            console.error(`Failed to link Pull Request: ${error}`);
+        }
+    };
   useEffect(() => {
     if (!taskId) {
       setTask(null)
@@ -801,6 +820,36 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
                               </div>
                             </div>
                           </div>
+                          <div>
+        <h4 className="font-semibold text-sm mb-1 flex items-center">
+            <Github className="w-4 h-4 mr-2"/>GitHub
+        </h4>
+        
+        {/* Display existing links */}
+        <div className="space-y-1 mb-2">
+            {task.github_links?.map(link => (
+                <a key={link.id} href={link.github_item_url} target="_blank" rel="noopener noreferrer" className="text-xs text-cyan-400 hover:underline truncate block">
+                    {link.github_item_url.replace('https://github.com/', '')}
+                </a>
+            ))}
+        </div>
+
+        {/* Form to add a new link */}
+        <div className="flex gap-2">
+            <Input 
+                value={githubPrUrl}
+                onChange={(e) => setGithubPrUrl(e.target.value)}
+                placeholder="Paste PR URL..." 
+                className="text-xs h-8" 
+            />
+            <Button onClick={handleLinkToGithub} size="sm" className="h-8">Link</Button>
+        </div>
+        
+        {/* Optional: Add a "Connect to GitHub" button if not already connected */}
+        <a href="http://localhost:5000/api/integrations/github/auth">
+            <Button variant="outline" className="w-full mt-2 text-xs h-8">Connect to GitHub</Button>
+        </a>
+    </div>
                         </div>
                       </ScrollArea>
                     </div>
