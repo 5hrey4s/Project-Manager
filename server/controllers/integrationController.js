@@ -4,12 +4,16 @@ const { getIO } = require('../socket');
 const axios = require('axios');
 
 // This function will be called when GitHub sends an event (e.g., PR merged)
+// This function handles incoming webhook events from GitHub
 exports.handleGithubWebhook = async (req, res) => {
     // 1. Verify the webhook signature for security
     const signature = req.headers['x-hub-signature-256'];
-    const expectedSignature = 'sha256=' + crypto.createHmac('sha256', process.env.GITHUB_WEBHOOK_SECRET).update(JSON.stringify(req.body)).digest('hex');
+    const expectedSignature = 'sha256=' + crypto.createHmac('sha256', process.env.GITHUB_WEBHOOK_SECRET)
+        .update(JSON.stringify(req.body))
+        .digest('hex');
 
     if (signature !== expectedSignature) {
+        console.error('Webhook signature verification failed!');
         return res.status(401).send('Invalid signature');
     }
 
@@ -18,10 +22,10 @@ exports.handleGithubWebhook = async (req, res) => {
     const payload = req.body;
 
     if (event === 'pull_request' && payload.action === 'closed' && payload.pull_request.merged) {
-        console.log(`Pull Request #${payload.number} was merged!`);
+        console.log(`Webhook received: Pull Request #${payload.number} was merged!`);
 
         try {
-            // Find the linked task in our database
+            // Find the linked task in our database using the PR's unique URL
             const linkResult = await pool.query(
                 'SELECT task_id FROM github_task_links WHERE github_item_url = $1',
                 [payload.pull_request.html_url]
@@ -29,25 +33,32 @@ exports.handleGithubWebhook = async (req, res) => {
 
             if (linkResult.rows.length > 0) {
                 const { task_id } = linkResult.rows[0];
+                console.log(`Found linked task with ID: ${task_id}. Updating status.`);
 
                 // Update the task status to 'Done'
                 const updateResult = await pool.query(
-                    "UPDATE tasks SET status = 'Done' WHERE id = $1 RETURNING *",
+                    "UPDATE tasks SET status = 'Done', updated_at = NOW() WHERE id = $1 RETURNING *",
                     [task_id]
                 );
-                
-                const updatedTask = updateResult.rows[0];
 
-                // Broadcast the update to the frontend in real-time
-                const io = getIO();
-                io.to(`project-${updatedTask.project_id}`).emit('task_updated', updatedTask);
+                if (updateResult.rows.length > 0) {
+                    const updatedTask = updateResult.rows[0];
+                    console.log(`Task ${task_id} successfully updated.`);
+
+                    // Broadcast the update to the frontend in real-time
+                    const io = getIO();
+                    io.to(`project-${updatedTask.project_id}`).emit('task_updated', updatedTask);
+                    console.log(`Socket.IO event 'task_updated' emitted to room: project-${updatedTask.project_id}`);
+                }
+            } else {
+                console.log(`No linked task found for PR URL: ${payload.pull_request.html_url}`);
             }
         } catch (dbError) {
-            console.error('Error processing webhook:', dbError.message);
+            console.error('Error processing webhook database operations:', dbError.message);
         }
     }
-    
-    // Acknowledge receipt of the event
+
+    // Acknowledge receipt of the event to GitHub
     res.status(200).send('Event received');
 };
 
@@ -66,7 +77,7 @@ exports.handleGithubCallback = async (req, res) => {
             client_secret: process.env.GITHUB_CLIENT_SECRET,
             code: code,
         }, { headers: { 'Accept': 'application/json' } });
-        
+
         const accessToken = tokenResponse.data.access_token;
         // Here you would typically save the access token to the user's profile in the database
         // For now, we will redirect back to the app.
@@ -90,12 +101,12 @@ exports.linkTaskToPullRequest = async (req, res) => {
         if (!prUrl || !prUrl.includes('github.com')) {
             return res.status(400).json({ msg: 'Invalid GitHub Pull Request URL provided.' });
         }
-        
+
         // Extract info from URL (this is a simplified example)
         const parts = prUrl.split('/');
         const prId = parts[parts.length - 1];
         const repoName = `${parts[3]}/${parts[4]}`;
-        
+
         // In a real app, you would use the GitHub API to get the PR's real ID and repo ID
         const fakeRepoId = 12345; // Placeholder
 
