@@ -3,17 +3,22 @@ const router = express.Router();
 const integrationController = require('../controllers/integrationController');
 const auth = require('../middleware/auth');
 
-// Note: The webhook endpoint does not use our standard 'auth' middleware
-// because it needs to be publicly accessible for GitHub to send events.
-// Security is handled by verifying the webhook signature.
+// --- PUBLIC ROUTES ---
+// This route starts the GitHub login. It must be public.
+router.get('/github/auth', integrationController.redirectToGithubAuth);
 
+// This webhook is for server-to-server communication from GitHub.
+// It uses its own signature verification instead of our auth middleware.
 router.post('/github/webhook', integrationController.handleGithubWebhook);
 
-// New OAuth routes
-router.get('/github/auth', auth, integrationController.redirectToGithubAuth);
-router.get('/github/callback', integrationController.handleGithubCallback);
+// --- PROTECTED ROUTES ---
+// The user must be logged into our application for these routes to work.
 
-// New route to link a task to a PR
+// This route handles the user's return from GitHub. It needs 'auth'
+// to know which user account to link the new GitHub token to.
+router.get('/github/callback', auth, integrationController.handleGithubCallback);
+
+// This route links a task to a PR and requires a logged-in user.
 router.post('/tasks/:taskId/link-github', auth, integrationController.linkTaskToPullRequest);
 
 module.exports = router;
