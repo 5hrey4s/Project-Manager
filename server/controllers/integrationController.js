@@ -6,14 +6,14 @@ const axios = require('axios');
 // This function will be called when GitHub sends an event (e.g., PR merged)
 // This function handles incoming webhook events from GitHub
 exports.handleGithubWebhook = async (req, res) => {
-    // 1. Verify the webhook signature for security
+    // 1. Verify the webhook signature (this part stays the same)
     const signature = req.headers['x-hub-signature-256'];
     const expectedSignature = 'sha256=' + crypto.createHmac('sha256', process.env.GITHUB_WEBHOOK_SECRET)
-        .update(JSON.stringify(req.body))
-        .digest('hex');
+                                          .update(JSON.stringify(req.body))
+                                          .digest('hex');
 
     if (signature !== expectedSignature) {
-        console.error('Webhook signature verification failed!');
+        console.error('Webhook signature verification failed.');
         return res.status(401).send('Invalid signature');
     }
 
@@ -21,44 +21,52 @@ exports.handleGithubWebhook = async (req, res) => {
     const event = req.headers['x-github-event'];
     const payload = req.body;
 
+    // --- LOGIC FOR MERGED PRS (Existing) ---
     if (event === 'pull_request' && payload.action === 'closed' && payload.pull_request.merged) {
         console.log(`Webhook received: Pull Request #${payload.number} was merged!`);
-
         try {
-            // Find the linked task in our database using the PR's unique URL
-            const linkResult = await pool.query(
-                'SELECT task_id FROM github_task_links WHERE github_item_url = $1',
-                [payload.pull_request.html_url]
-            );
-
+            const linkResult = await pool.query('SELECT task_id FROM github_task_links WHERE github_item_url = $1', [payload.pull_request.html_url]);
             if (linkResult.rows.length > 0) {
                 const { task_id } = linkResult.rows[0];
-                console.log(`Found linked task with ID: ${task_id}. Updating status.`);
-
-                // Update the task status to 'Done'
-                const updateResult = await pool.query(
-                    "UPDATE tasks SET status = 'Done', updated_at = NOW() WHERE id = $1 RETURNING *",
-                    [task_id]
-                );
-
+                const updateResult = await pool.query("UPDATE tasks SET status = 'Done', updated_at = NOW() WHERE id = $1 RETURNING *", [task_id]);
                 if (updateResult.rows.length > 0) {
                     const updatedTask = updateResult.rows[0];
-                    console.log(`Task ${task_id} successfully updated.`);
-
-                    // Broadcast the update to the frontend in real-time
                     const io = getIO();
                     io.to(`project-${updatedTask.project_id}`).emit('task_updated', updatedTask);
-                    console.log(`Socket.IO event 'task_updated' emitted to room: project-${updatedTask.project_id}`);
                 }
-            } else {
-                console.log(`No linked task found for PR URL: ${payload.pull_request.html_url}`);
             }
         } catch (dbError) {
-            console.error('Error processing webhook database operations:', dbError.message);
+            console.error('Error processing merged PR webhook:', dbError.message);
+        }
+    } 
+    // --- NEW LOGIC FOR OPENED PRS (New) ---
+    else if (event === 'pull_request' && payload.action === 'opened') {
+        console.log(`Webhook received: Pull Request #${payload.number} was opened!`);
+        try {
+            // In a real-world app, you'd parse the PR title or body for a task ID like "INT-123"
+            // For now, we'll assume it's already linked and find it by its URL
+            const linkResult = await pool.query('SELECT task_id FROM github_task_links WHERE github_item_url = $1', [payload.pull_request.html_url]);
+            if (linkResult.rows.length > 0) {
+                const { task_id } = linkResult.rows[0];
+                console.log(`Found linked task with ID: ${task_id}. Updating status to In Progress.`);
+
+                const updateResult = await pool.query("UPDATE tasks SET status = 'In Progress', updated_at = NOW() WHERE id = $1 RETURNING *", [task_id]);
+                
+                if (updateResult.rows.length > 0) {
+                    const updatedTask = updateResult.rows[0];
+                    const io = getIO();
+                    io.to(`project-${updatedTask.project_id}`).emit('task_updated', updatedTask);
+                    console.log(`Task ${task_id} successfully moved to In Progress.`);
+                }
+            } else {
+                console.log(`No pre-existing link found for opened PR URL: ${payload.pull_request.html_url}`);
+            }
+        } catch (dbError) {
+            console.error('Error processing opened PR webhook:', dbError.message);
         }
     }
-
-    // Acknowledge receipt of the event to GitHub
+    
+    // Acknowledge receipt of the event
     res.status(200).send('Event received');
 };
 

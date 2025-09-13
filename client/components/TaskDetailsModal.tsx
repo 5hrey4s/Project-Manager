@@ -846,7 +846,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
         </div>
         
         {/* Optional: Add a "Connect to GitHub" button if not already connected */}
-        <a href="http://localhost:5000/api/integrations/github/auth">
+        <a href="https://project-manager-api-4kb8.onrender.com/api/integrations/github/auth">
             <Button variant="outline" className="w-full mt-2 text-xs h-8">Connect to GitHub</Button>
         </a>
     </div>
