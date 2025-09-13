@@ -849,6 +849,12 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
         <a href="https://project-manager-api-4kb8.onrender.com/api/integrations/github/auth">
             <Button variant="outline" className="w-full mt-2 text-xs h-8">Connect to GitHub</Button>
         </a>
+        <a href="https://github.com/apps/intellitask/installations/new">
+    <Button>
+        <Github className="mr-2 h-4 w-4" />
+        Connect & Install GitHub App
+    </Button>
+</a>
     </div>
                         </div>
                       </ScrollArea>
