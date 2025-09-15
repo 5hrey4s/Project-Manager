@@ -22,42 +22,38 @@ const verifyCallback = async (accessToken, refreshToken, profile, done) => {
     const { id: provider_id, provider, displayName, emails } = profile;
     const email = emails && emails.length > 0 ? emails[0].value : null;
 
-    // --- TEMPORARY HARDCODED CONNECTION ---
-    // Replace this with your actual, clean connection string
-    // --- END OF TEMPORARY CODE ---
-
-
     if (!email) {
         return done(new Error('Email not provided by the authentication provider.'));
     }
 
     try {
-        // Use the pool instead of the imported pool
-        let result = await pool.query('SELECT * FROM users WHERE provider = $1 AND provider_id = $2', [provider, provider_id]);
+        // Check if user exists by provider + provider_id
+        let result = await pool.query(
+            'SELECT * FROM users WHERE provider = $1 AND provider_id = $2',
+            [provider, provider_id]
+        );
 
         if (result.rows.length > 0) {
-            await pool.end(); // Close the temporary pool
             return done(null, result.rows[0]);
         }
 
+        // Check if user exists by email
         result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
         if (result.rows.length > 0) {
-            await pool.end(); // Close the temporary pool
             return done(null, result.rows[0]);
         }
 
+        // Create new user
         const username = displayName || email.split('@')[0];
         const newUserResult = await pool.query(
             'INSERT INTO users (username, email, provider, provider_id) VALUES ($1, $2, $3, $4) RETURNING *',
             [username, email, provider, provider_id]
         );
 
-        await pool.end(); // Close the temporary pool
         return done(null, newUserResult.rows[0]);
 
     } catch (err) {
-        await pool.end(); // Close the temporary pool on error
         console.error('Error in Passport verification callback:', err);
         return done(err);
     }
