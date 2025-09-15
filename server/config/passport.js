@@ -2,6 +2,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const GitHubStrategy = require('passport-github2').Strategy;
 const pool = require('./db');
+const { Pool } = require('pg');
 
 passport.serializeUser((user, done) => {
     done(null, user.id);
