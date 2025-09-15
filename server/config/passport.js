@@ -2,7 +2,6 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const GitHubStrategy = require('passport-github2').Strategy;
 const pool = require('./db');
-const { Pool } = require('pg');
 
 passport.serializeUser((user, done) => {
     done(null, user.id);
@@ -25,11 +24,6 @@ const verifyCallback = async (accessToken, refreshToken, profile, done) => {
 
     // --- TEMPORARY HARDCODED CONNECTION ---
     // Replace this with your actual, clean connection string
-    const connectionString = 'postgresql://postgres:V4VPZCyjM5eJV6yx@db.xvpoazghxemrpiwqebgl.supabase.co:5432/postgres';
-    const tempPool = new Pool({
-        connectionString: connectionString,
-        ssl: { rejectUnauthorized: false }
-    });
     // --- END OF TEMPORARY CODE ---
 
 
@@ -38,32 +32,32 @@ const verifyCallback = async (accessToken, refreshToken, profile, done) => {
     }
 
     try {
-        // Use the tempPool instead of the imported pool
-        let result = await tempPool.query('SELECT * FROM users WHERE provider = $1 AND provider_id = $2', [provider, provider_id]);
+        // Use the pool instead of the imported pool
+        let result = await pool.query('SELECT * FROM users WHERE provider = $1 AND provider_id = $2', [provider, provider_id]);
 
         if (result.rows.length > 0) {
-            await tempPool.end(); // Close the temporary pool
+            await pool.end(); // Close the temporary pool
             return done(null, result.rows[0]);
         }
 
-        result = await tempPool.query('SELECT * FROM users WHERE email = $1', [email]);
+        result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
         if (result.rows.length > 0) {
-            await tempPool.end(); // Close the temporary pool
+            await pool.end(); // Close the temporary pool
             return done(null, result.rows[0]);
         }
 
         const username = displayName || email.split('@')[0];
-        const newUserResult = await tempPool.query(
+        const newUserResult = await pool.query(
             'INSERT INTO users (username, email, provider, provider_id) VALUES ($1, $2, $3, $4) RETURNING *',
             [username, email, provider, provider_id]
         );
 
-        await tempPool.end(); // Close the temporary pool
+        await pool.end(); // Close the temporary pool
         return done(null, newUserResult.rows[0]);
 
     } catch (err) {
-        await tempPool.end(); // Close the temporary pool on error
+        await pool.end(); // Close the temporary pool on error
         console.error('Error in Passport verification callback:', err);
         return done(err);
     }
