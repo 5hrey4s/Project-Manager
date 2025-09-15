@@ -22,44 +22,47 @@ const verifyCallback = async (accessToken, refreshToken, profile, done) => {
     const { id: provider_id, provider, displayName, emails } = profile;
     const email = emails && emails.length > 0 ? emails[0].value : null;
 
+    // --- TEMPORARY HARDCODED CONNECTION ---
+    // Replace this with your actual, clean connection string
+    const connectionString = 'postgresql://postgres:V4VPZCyjM5eJV6yx@db.xvpoazghxemrpiwqebgl.supabase.co:5432/postgres';
+    const tempPool = new Pool({
+        connectionString: connectionString,
+        ssl: { rejectUnauthorized: false }
+    });
+    // --- END OF TEMPORARY CODE ---
+
+
     if (!email) {
         return done(new Error('Email not provided by the authentication provider.'));
     }
 
     try {
-        // Step 1: Find user by their specific provider ID (e.g., their unique Google ID)
-        let result = await pool.query('SELECT * FROM users WHERE provider = $1 AND provider_id = $2', [provider, provider_id]);
+        // Use the tempPool instead of the imported pool
+        let result = await tempPool.query('SELECT * FROM users WHERE provider = $1 AND provider_id = $2', [provider, provider_id]);
 
         if (result.rows.length > 0) {
-            console.log('User found by provider ID. Logging in.');
+            await tempPool.end(); // Close the temporary pool
             return done(null, result.rows[0]);
         }
 
-        // Step 2: If not found, check if a user with that email already exists (from a different login method)
-        result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        result = await tempPool.query('SELECT * FROM users WHERE email = $1', [email]);
 
         if (result.rows.length > 0) {
-            console.log(`Email found. Linking ${provider} account to existing user.`);
-            // This is where you could add logic to update the user record with the new provider_id if you want to store it.
+            await tempPool.end(); // Close the temporary pool
             return done(null, result.rows[0]);
         }
 
-        // Step 3: If no user exists with that provider ID or email, create a new user
-        console.log('No existing user found. Creating new user.');
         const username = displayName || email.split('@')[0];
-        const newUserResult = await pool.query(
+        const newUserResult = await tempPool.query(
             'INSERT INTO users (username, email, provider, provider_id) VALUES ($1, $2, $3, $4) RETURNING *',
             [username, email, provider, provider_id]
         );
 
+        await tempPool.end(); // Close the temporary pool
         return done(null, newUserResult.rows[0]);
 
     } catch (err) {
-        // Handle potential race conditions or other DB errors
-        if (err.code === '23505') { // Unique constraint violation
-            console.error('Database error: A user with this username or email already exists.', err.detail);
-            return done(new Error('A user with this username or email already exists.'));
-        }
+        await tempPool.end(); // Close the temporary pool on error
         console.error('Error in Passport verification callback:', err);
         return done(err);
     }
