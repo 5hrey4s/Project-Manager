@@ -23,6 +23,9 @@ router.post('/tasks/:taskId/link-github', auth, integrationController.linkTaskTo
 
 // --- NEW ROUTE for App Installation ---
 // This will be the "Setup URL" you put in GitHub's settings.
-router.get('/github/installation/callback', auth, integrationController.handleGithubInstallationCallback);
+router.get('/github/installation/callback', integrationController.handleGithubInstallationCallback);
+
+// Add this new SECURE route for your frontend to call later.
+router.post('/github/save-installation', auth, integrationController.saveGithubInstallation);
 
 module.exports = router;

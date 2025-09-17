@@ -130,29 +130,34 @@ exports.linkTaskToPullRequest = async (req, res) => {
     }
 };
 
-exports.handleGithubInstallationCallback = async (req, res) => {
+exports.handleGithubInstallationCallback = (req, res) => {
     const { installation_id } = req.query;
-    const userId = req.user.id;
 
     if (!installation_id) {
-        // --- CHANGE THIS LINE ---
-        // Redirect to your main dashboard with a failure flag if something goes wrong
         return res.redirect(`${process.env.CLIENT_URL}/dashboard?integration=failed`);
+    }
+
+    // Immediately redirect to a new frontend page, passing the ID.
+    res.redirect(`${process.env.CLIENT_URL}/integration/github/finalize?installation_id=${installation_id}`);
+};
+
+// Add this new function to securely save the ID.
+exports.saveGithubInstallation = async (req, res) => {
+    const { installationId } = req.body;
+    const userId = req.user.id; // Comes from the 'auth' middleware on the new route
+
+    if (!installationId) {
+        return res.status(400).json({ msg: 'Installation ID is required.' });
     }
 
     try {
         await pool.query(
             'UPDATE users SET github_installation_id = $1 WHERE id = $2',
-            [installation_id, userId]
+            [installationId, userId]
         );
-
-        // --- CHANGE THIS LINE ---
-        // After successfully saving, redirect to your new, dedicated success page
-        res.redirect(`${process.env.CLIENT_URL}/integration/github/success`);
-
+        res.status(200).json({ msg: 'Installation saved successfully.' });
     } catch (error) {
-        console.error('Error saving GitHub installation ID:', error.message);
-        // --- CHANGE THIS LINE ---
-        res.redirect(`${process.env.CLIENT_URL}/dashboard?integration=failed`);
+        console.error('Error saving installation ID:', error.message);
+        res.status(500).send('Server Error');
     }
 };
