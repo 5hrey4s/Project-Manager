@@ -9,8 +9,8 @@ exports.handleGithubWebhook = async (req, res) => {
     // 1. Verify the webhook signature (this part stays the same)
     const signature = req.headers['x-hub-signature-256'];
     const expectedSignature = 'sha256=' + crypto.createHmac('sha256', process.env.GITHUB_WEBHOOK_SECRET)
-                                          .update(JSON.stringify(req.body))
-                                          .digest('hex');
+        .update(JSON.stringify(req.body))
+        .digest('hex');
 
     if (signature !== expectedSignature) {
         console.error('Webhook signature verification failed.');
@@ -38,7 +38,7 @@ exports.handleGithubWebhook = async (req, res) => {
         } catch (dbError) {
             console.error('Error processing merged PR webhook:', dbError.message);
         }
-    } 
+    }
     // --- NEW LOGIC FOR OPENED PRS (New) ---
     else if (event === 'pull_request' && payload.action === 'opened') {
         console.log(`Webhook received: Pull Request #${payload.number} was opened!`);
@@ -51,7 +51,7 @@ exports.handleGithubWebhook = async (req, res) => {
                 console.log(`Found linked task with ID: ${task_id}. Updating status to In Progress.`);
 
                 const updateResult = await pool.query("UPDATE tasks SET status = 'In Progress', updated_at = NOW() WHERE id = $1 RETURNING *", [task_id]);
-                
+
                 if (updateResult.rows.length > 0) {
                     const updatedTask = updateResult.rows[0];
                     const io = getIO();
@@ -65,7 +65,7 @@ exports.handleGithubWebhook = async (req, res) => {
             console.error('Error processing opened PR webhook:', dbError.message);
         }
     }
-    
+
     // Acknowledge receipt of the event
     res.status(200).send('Event received');
 };
@@ -127,5 +127,32 @@ exports.linkTaskToPullRequest = async (req, res) => {
     } catch (error) {
         console.error('Error linking task to PR:', error);
         res.status(500).send('Server Error');
+    }
+};
+
+exports.handleGithubInstallationCallback = async (req, res) => {
+    const { installation_id } = req.query;
+    const userId = req.user.id;
+
+    if (!installation_id) {
+        // --- CHANGE THIS LINE ---
+        // Redirect to your main dashboard with a failure flag if something goes wrong
+        return res.redirect(`${process.env.CLIENT_URL}/dashboard?integration=failed`);
+    }
+
+    try {
+        await pool.query(
+            'UPDATE users SET github_installation_id = $1 WHERE id = $2',
+            [installation_id, userId]
+        );
+
+        // --- CHANGE THIS LINE ---
+        // After successfully saving, redirect to your new, dedicated success page
+        res.redirect(`${process.env.CLIENT_URL}/integration/github/success`);
+
+    } catch (error) {
+        console.error('Error saving GitHub installation ID:', error.message);
+        // --- CHANGE THIS LINE ---
+        res.redirect(`${process.env.CLIENT_URL}/dashboard?integration=failed`);
     }
 };

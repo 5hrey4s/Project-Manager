@@ -21,4 +21,8 @@ router.get('/github/callback', auth, integrationController.handleGithubCallback)
 // This route links a task to a PR and requires a logged-in user.
 router.post('/tasks/:taskId/link-github', auth, integrationController.linkTaskToPullRequest);
 
+// --- NEW ROUTE for App Installation ---
+// This will be the "Setup URL" you put in GitHub's settings.
+router.get('/github/installation/callback', auth, integrationController.handleGithubInstallationCallback);
+
 module.exports = router;
