@@ -52,13 +52,19 @@ exports.loginUser = async (req, res) => {
 
 exports.getLoggedInUser = async (req, res) => {
     try {
-        const user = await pool.query("SELECT id, username, email FROM users WHERE id = $1", [req.user.id]);
+        // --- CHANGE THIS LINE ---
+        // Add `github_installation_id` to the SELECT query
+        const user = await pool.query(
+            "SELECT id, username, email, github_installation_id FROM users WHERE id = $1",
+            [req.user.id]
+        );
         res.json(user.rows[0]);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
     }
 };
+
 
 exports.getMyTasks = async (req, res) => {
     try {
