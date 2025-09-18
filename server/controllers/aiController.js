@@ -5,39 +5,63 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 exports.generateTasks = async (req, res) => {
     try {
         const { goal, projectId } = req.body;
-        const userId = parseInt(req.user.id, 10);
 
         if (!goal || !projectId) {
             return res.status(400).json({ msg: 'A project goal and projectId are required.' });
         }
 
-        const memberCheck = await pool.query(
-            "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
-            [projectId, userId]
+        // --- NEW: Fetching Project Context ---
+        const existingTasksResult = await pool.query(
+            'SELECT title, description FROM tasks WHERE project_id = $1 AND is_deleted = false',
+            [projectId]
         );
-        if (memberCheck.rows.length === 0) {
-            return res.status(403).json({ msg: 'Forbidden: You are not a member of this project.' });
-        }
+        const membersResult = await pool.query(
+            `SELECT u.id, u.username FROM users u JOIN project_members pm ON u.id = pm.user_id WHERE pm.project_id = $1`,
+            [projectId]
+        );
+
+        const existingTasks = existingTasksResult.rows;
+        const members = membersResult.rows;
+
+        // --- NEW: Building a Rich Context String for the AI ---
+        let projectContext = "This is the current state of the project.\n";
+        projectContext += `Project Members: ${members.map(m => `${m.username} (ID: ${m.id})`).join(', ')}\n`;
+        projectContext += "Existing Tasks:\n" + existingTasks.map(t => `- ${t.title}`).join('\n');
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
-        const prompt = `As an expert project manager, break down the following high-level goal into a concise list of actionable tasks for a Kanban board. The goal is: "${goal}".
-        Return your response ONLY as a valid JSON array of strings, with no other text or explanation. For example: ["Task 1", "Task 2", "Task 3"]`;
+        // --- NEW: A More Advanced, Structured Prompt ---
+        const prompt = `You are an expert project manager. Your goal is to break down a high-level objective into actionable tasks.
+        
+        Based on the provided project context, generate a list of new tasks for the objective: "${goal}".
+        - Do NOT create tasks that are duplicates of the "Existing Tasks".
+        - For each task, provide a clear title and a concise, one-sentence description.
+        - If it makes sense, suggest an assignee for the task by using their member ID.
+        
+        Return your response ONLY as a valid JSON array of objects. Each object must have the following keys: "title" (string), "description" (string), and "suggested_assignee_id" (integer or null).
+
+        ---
+        CONTEXT:
+        ${projectContext}
+        ---
+        `;
 
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
 
         const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const tasks = JSON.parse(cleanedText);
+        const generatedTasks = JSON.parse(cleanedText);
 
-        res.json(tasks);
+        // Send the rich array of task objects directly
+        res.json(generatedTasks);
 
     } catch (error) {
         console.error("Error generating AI tasks:", error);
-        res.status(500).json({ msg: 'Failed to generate tasks from AI.' });
+        res.status(500).send('Failed to generate tasks from AI.');
     }
 };
+
 
 exports.copilot = async (req, res) => {
     try {
