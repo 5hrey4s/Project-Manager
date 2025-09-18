@@ -31,7 +31,8 @@ exports.generateTasks = async (req, res) => {
         const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const tasks = JSON.parse(cleanedText);
 
-        res.json({ suggestedTasks: tasks });
+        res.json(tasks);
+
     } catch (error) {
         console.error("Error generating AI tasks:", error);
         res.status(500).json({ msg: 'Failed to generate tasks from AI.' });
