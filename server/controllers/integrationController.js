@@ -2,6 +2,7 @@ const pool = require('../config/db');
 const crypto = require('crypto');
 const { getIO } = require('../socket');
 const axios = require('axios');
+const { Octokit } = require("@octokit/rest");
 
 // This function will be called when GitHub sends an event (e.g., PR merged)
 // This function handles incoming webhook events from GitHub
@@ -159,5 +160,50 @@ exports.saveGithubInstallation = async (req, res) => {
     } catch (error) {
         console.error('Error saving installation ID:', error.message);
         res.status(500).send('Server Error');
+    }
+};
+
+exports.getLinkedItemStatus = async (req, res) => {
+    try {
+        const { taskId } = req.params;
+
+        // 1. Find the linked GitHub URL for this task
+        const linkResult = await pool.query(
+            'SELECT github_item_url FROM github_task_links WHERE task_id = $1',
+            [taskId]
+        );
+
+        if (linkResult.rows.length === 0) {
+            return res.json({ status: null }); // No link found
+        }
+
+        const prUrl = linkResult.rows[0].github_item_url;
+        const urlParts = prUrl.split('/');
+        const owner = urlParts[3];
+        const repo = urlParts[4];
+        const pull_number = parseInt(urlParts[6], 10);
+
+        // 2. Use Octokit to fetch the PR status from GitHub's API
+        const octokit = new Octokit(); // No auth needed for public repos
+        const { data: pr } = await octokit.pulls.get({
+            owner,
+            repo,
+            pull_number,
+        });
+
+        // 3. Determine the status
+        let status = 'Open';
+        if (pr.merged) {
+            status = 'Merged';
+        } else if (pr.state === 'closed') {
+            status = 'Closed';
+        }
+
+        res.json({ status, url: prUrl });
+
+    } catch (error) {
+        console.error('Error fetching PR status:', error.message);
+        // Don't send a 500, as it's not a critical failure for the user
+        res.status(200).json({ status: 'Error', message: 'Could not fetch status from GitHub.' });
     }
 };

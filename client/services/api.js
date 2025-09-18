@@ -74,3 +74,10 @@ export const deleteAttachment = (attachmentId) => {
 export const linkTaskToGithub = (taskId, prUrl) => {
     return apiClient.post(`/api/integrations/tasks/${taskId}/link-github`, { prUrl }, authHeader());
 };
+
+export const getPrStatus = (taskId) => {
+    const token = localStorage.getItem('token');
+    return axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/integrations/tasks/${taskId}/link-status`, {
+        headers: { 'x-auth-token': token }
+    });
+};

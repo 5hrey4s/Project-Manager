@@ -52,7 +52,7 @@ import {
 } from "lucide-react"
 
 // --- Service Imports ---
-import { getTaskDetails, updateTask, deleteTask, addComment, linkTaskToGithub } from "../services/api"
+import { getTaskDetails, updateTask, deleteTask, addComment, linkTaskToGithub, getPrStatus } from "../services/api"
 // import { useAuth } from "../context/AuthContext"
 
 // --- Type Definitions ---
@@ -113,6 +113,7 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
   const [startDate, setStartDate] = useState<Date | undefined>()
   const [dueDate, setDueDate] = useState<Date | undefined>()
   const [newComment, setNewComment] = useState("")
+  const [prStatus, setPrStatus] = useState<{ status: string | null; url: string | null }>({ status: null, url: null });
 
   const [githubPrUrl, setGithubPrUrl] = useState("");
 
@@ -153,6 +154,20 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
       }
     }
     fetchDetails()
+
+    const fetchPrStatus = async () => {
+      if (taskId) {
+        try {
+          const res = await getPrStatus(taskId);
+          setPrStatus(res.data);
+        } catch (error) {
+          console.error("Failed to fetch PR status", error);
+        }
+      }
+    };
+
+    fetchPrStatus();
+
   }, [taskId, onClose])
 
   const handleSaveChanges = async () => {
@@ -273,6 +288,20 @@ export default function TaskDetailsModal({ taskId, onClose }: TaskDetailsModalPr
           <div className="flex flex-col h-full">
             <DialogHeader className="px-4 sm:px-6 py-4 border-b bg-gradient-to-r from-background via-muted/20 to-background flex-shrink-0">
               <DialogTitle className="sr-only">Task Details: {task.title}</DialogTitle>
+              {prStatus && prStatus.status && prStatus.url && (
+  <div className="mt-2">
+    <a href={prStatus.url} target="_blank" rel="noopener noreferrer">
+      <Badge variant={
+        prStatus.status === 'Merged' ? 'success' : 
+        prStatus.status === 'Closed' ? 'destructive' : 'secondary'
+      }>
+        <Github className="w-3 h-3 mr-2" />
+        Pull Request: {prStatus.status}
+      </Badge>
+    </a>
+  </div>
+)}
+
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0 space-y-3">
                   <Input

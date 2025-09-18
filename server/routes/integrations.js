@@ -28,4 +28,7 @@ router.get('/github/installation/callback', integrationController.handleGithubIn
 // Add this new SECURE route for your frontend to call later.
 router.post('/github/save-installation', auth, integrationController.saveGithubInstallation);
 
+// NEW: Get the status of a GitHub item (like a PR) linked to a task
+router.get('/tasks/:taskId/link-status', auth, integrationController.getLinkedItemStatus);
+
 module.exports = router;
