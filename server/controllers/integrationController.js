@@ -163,35 +163,71 @@ exports.saveGithubInstallation = async (req, res) => {
     }
 };
 
+// --- HELPER FUNCTION ---
+// This new function creates a temporary, authenticated GitHub client for a specific installation.
+const getInstallationClient = async (installationId) => {
+  const auth = createAppAuth({
+    appId: process.env.GITHUB_APP_ID,
+    privateKey: process.env.GITHUB_PRIVATE_KEY,
+    installationId: installationId,
+  });
+
+  // Get an installation access token
+  const { token } = await auth({ type: "installation" });
+
+  // Return a new Octokit client authenticated with that token
+  return new Octokit({ auth: token });
+};
+
+// --- UPGRADED FUNCTION to fetch PR Status ---
 exports.getLinkedItemStatus = async (req, res) => {
     try {
         const { taskId } = req.params;
 
-        // 1. Find the linked GitHub URL for this task
+        // 1. Find the linked GitHub URL for this task (unchanged)
         const linkResult = await pool.query(
             'SELECT github_item_url FROM github_task_links WHERE task_id = $1',
             [taskId]
         );
 
         if (linkResult.rows.length === 0) {
-            return res.json({ status: null }); // No link found
+            return res.json({ status: null });
         }
 
         const prUrl = linkResult.rows[0].github_item_url;
+        
+        // --- NEW: Get the installation_id for the project owner ---
+        // a. Get the project_id from the task
+        const taskResult = await pool.query('SELECT project_id FROM tasks WHERE id = $1', [taskId]);
+        const projectId = taskResult.rows[0].project_id;
+        
+        // b. Get the owner_id from the project
+        const projectResult = await pool.query('SELECT owner_id FROM projects WHERE id = $1', [projectId]);
+        const ownerId = projectResult.rows[0].owner_id;
+
+        // c. Get the installation_id from the owner's user record
+        const userResult = await pool.query('SELECT github_installation_id FROM users WHERE id = $1', [ownerId]);
+        const installationId = userResult.rows[0].github_installation_id;
+
+        if (!installationId) {
+            throw new Error('GitHub App installation not found for the project owner.');
+        }
+
+        // 2. Create an AUTHENTICATED client (this is the core fix)
+        const octokit = await getInstallationClient(installationId);
+
+        // 3. Use the authenticated client to fetch PR status (unchanged logic)
         const urlParts = prUrl.split('/');
         const owner = urlParts[3];
         const repo = urlParts[4];
         const pull_number = parseInt(urlParts[6], 10);
 
-        // 2. Use Octokit to fetch the PR status from GitHub's API
-        const octokit = new Octokit(); // No auth needed for public repos
         const { data: pr } = await octokit.pulls.get({
             owner,
             repo,
             pull_number,
         });
 
-        // 3. Determine the status
         let status = 'Open';
         if (pr.merged) {
             status = 'Merged';
@@ -203,7 +239,6 @@ exports.getLinkedItemStatus = async (req, res) => {
 
     } catch (error) {
         console.error('Error fetching PR status:', error.message);
-        // Don't send a 500, as it's not a critical failure for the user
         res.status(200).json({ status: 'Error', message: 'Could not fetch status from GitHub.' });
     }
 };
