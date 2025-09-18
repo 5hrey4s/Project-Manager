@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CheckCircle2, Github, LinkIcon } from 'lucide-react';
+import { CheckCircle2, Github, LinkIcon, Settings } from 'lucide-react';
 
 
 // --- Updated Types ---
@@ -136,43 +136,56 @@ export default function Dashboard() {
               </Table>
             </CardContent>
           </Card>
-       <Card>
-            <CardHeader>
-              <CardTitle>Integrations</CardTitle>
-              <CardDescription>
-                Connect your account to other services to automate your workflow.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <Github className="w-8 h-8" />
-                  <div>
-                    <h3 className="font-semibold">GitHub</h3>
-                    <p className="text-sm text-gray-500">Link tasks to pull requests.</p>
-                  </div>
-                </div>
+<Card>
+  <CardHeader>
+    <CardTitle>Integrations</CardTitle>
+    <CardDescription>
+      Connect your account to other services to automate your workflow.
+    </CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="flex items-center justify-between p-4 border rounded-lg">
+      <div className="flex items-center gap-4">
+        <Github className="w-8 h-8" />
+        <div>
+          <h3 className="font-semibold">GitHub</h3>
+          <p className="text-sm text-gray-500">Link tasks to pull requests.</p>
+        </div>
+      </div>
 
-                {/* --- THIS IS THE CONDITIONAL LOGIC --- */}
-                {user?.github_installation_id ? (
-                  // If the user HAS an installation ID, show a "Connected" status
-                  <div className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-100 rounded-full">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Connected
-                  </div>
-                ) : (
-                  // If the user does NOT have an installation ID, show the "Install App" button
-                  <Button asChild>
-                    <a href="https://github.com/apps/intellitask/installations/new">
-                      <LinkIcon className="w-4 h-4 mr-2" />
-                      Install App
-                    </a>
-                  </Button>
-                )}
-                
-              </div>
-            </CardContent>
-          </Card>
+      {/* --- THIS IS THE UPGRADED LOGIC --- */}
+      {user?.github_installation_id ? (
+        // If the user HAS an installation ID, show status and a "Manage" button.
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-green-700">
+            <CheckCircle2 className="w-4 h-4" />
+            Connected
+          </div>
+          <Button asChild variant="secondary" size="sm">
+            <a
+              href={`https://github.com/settings/installations/${user.github_installation_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Manage
+            </a>
+          </Button>
+        </div>
+      ) : (
+        // If the user does NOT have an installation ID, show the "Install App" button.
+        <Button asChild>
+          <a href="https://github.com/apps/intellitask/installations/new">
+            <LinkIcon className="w-4 h-4 mr-2" />
+            Install App
+          </a>
+        </Button>
+      )}
+      
+    </div>
+  </CardContent>
+</Card>
+
 
 
           {/* "Create Project" Widget */}
