@@ -36,23 +36,33 @@ export default function AiTaskGeneratorModal({ projectId, onClose, setTasks }: A
   const [suggestedTasks, setSuggestedTasks] = useState<string[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [aiError, setAiError] = useState("")
-
-  const handleGenerateTasks = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsGenerating(true)
-    setSuggestedTasks([])
-    setAiError("")
+  
+const handleGenerateTasks = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsGenerating(true);
+    setSuggestedTasks([]);
+    setAiError("");
     try {
-      const res = await generateAiTasks(projectId, aiGoal)
-      setSuggestedTasks(res.data.tasks)
-    } catch (error) {
-      console.error("AI task generation failed:", error)
-      setAiError("Failed to generate tasks. Please try again.")
-    } finally {
-      setIsGenerating(false)
-    }
-  }
+      const res = await generateAiTasks(aiGoal, projectId);
 
+      // --- THIS IS THE FIX ---
+      // We must verify that the data from the API is actually an array
+      // before we try to set it in our state.
+      if (Array.isArray(res.data)) {
+        setSuggestedTasks(res.data);
+      } else {
+        // If it's not an array, we throw an error to be caught below.
+        console.error("API response was not in the expected array format:", res.data);
+        throw new Error("Received an invalid format from the AI service.");
+      }
+
+    } catch (error) {
+      console.error("AI Generation Error:", error);
+      setAiError("Failed to generate tasks. The AI might be unavailable or the response was invalid.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
   // --- THIS IS THE FIX ---
   const handleAddTask = async (taskTitle: string) => {
     try {
