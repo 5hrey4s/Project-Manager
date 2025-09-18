@@ -38,6 +38,7 @@ export default function FinalizeGitHubIntegration() {
 
       } catch (error) {
         toast.error('Could not finalize GitHub connection. Please try again.');
+        console.error(`Could not finalize GitHub connection. Please try again: ${error}`)
         router.push('/dashboard');
       }
     };

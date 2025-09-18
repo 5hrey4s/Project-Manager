@@ -5,7 +5,6 @@ import { Sparkles, Plus, Loader2 } from "lucide-react";
 import { createTask, generateAiTasks } from "../services/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -79,7 +78,8 @@ export default function AiTaskGeneratorModal({ projectId, onClose, setTasks }: A
       toast.success(`Task "${taskSuggestion.title}" added.`);
 
     } catch (error) {
-      toast.error("Failed to add task.");
+      toast.error(`Failed to add task: `);
+      console.error(`Failed to add task: ${error}`);
     }
   };
 
@@ -89,7 +89,7 @@ export default function AiTaskGeneratorModal({ projectId, onClose, setTasks }: A
         <DialogHeader>
           <DialogTitle>AI Task Generator</DialogTitle>
           <DialogDescription>
-            Describe a high-level goal, and the AI will break it down into tasks based on your project's current state.
+            Describe a high-level goal, and the AI will break it down into tasks based on your project&apos;s current state.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleGenerateTasks} className="space-y-4 pt-2">
