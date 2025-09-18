@@ -25,8 +25,22 @@ export const updateTask = (taskId, taskData) => apiClient.put(`/api/tasks/${task
 export const updateTaskStatus = (taskId, status) => apiClient.patch(`/api/tasks/${taskId}/status`, { status }, authHeader());
 export const deleteTask = (taskId) => apiClient.delete(`/api/tasks/${taskId}`, authHeader());
 export const inviteMember = (projectId, email) => apiClient.post(`/api/projects/${projectId}/invitations`, { email }, authHeader());
-export const generateAiTasks = (projectId, goal) => apiClient.post('/api/ai/generate-tasks', { projectId, goal }, authHeader());
-export const queryCopilot = (projectId, message) => apiClient.post('/api/ai/copilot', { projectId, message }, authHeader());
+export const generateAiTasks = (goal, projectId) => {
+    const token = localStorage.getItem('token');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    // --- THIS IS THE FIX ---
+    // Ensure the object keys match what the backend expects:
+    // { goal: "the user's text", projectId: "the project's ID" }
+    const body = {
+        goal: goal,
+        projectId: projectId,
+    };
+
+    return axios.post(`${apiUrl}/api/ai/generate-tasks`, body, {
+        headers: { 'x-auth-token': token },
+    });
+}; export const queryCopilot = (projectId, message) => apiClient.post('/api/ai/copilot', { projectId, message }, authHeader());
 export const assignTask = (taskId, assigneeId) => apiClient.patch(`/api/tasks/${taskId}/assign`, { assigneeId }, authHeader());
 
 export const acceptInvitation = (invitationId) => {
