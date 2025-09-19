@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { searchItems } from "@/services/api" // We will create this API call
 import {
   CommandDialog,
   CommandEmpty,
@@ -12,6 +11,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { FileText, Folder, Search } from "lucide-react"
+import { searchItems } from "../services/api"
 
 // Define the structure of our search results
 interface SearchResult {
