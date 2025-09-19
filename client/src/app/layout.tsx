@@ -5,6 +5,7 @@ import "./globals.css";
 import { usePathname } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import { AuthProvider } from "../../context/AuthContext";
+import { CommandPalette } from "../../components/CommandPalette";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,6 +24,8 @@ export default function RootLayout({
         <AuthProvider>
           {showNav && <Navbar />}
           <main>{children}</main>
+            <CommandPalette /> {/* Add the component here */}
+
         </AuthProvider>
       </body>
     </html>

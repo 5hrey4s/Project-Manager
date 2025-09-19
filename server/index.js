@@ -39,7 +39,7 @@ const notificationRoutes = require('./routes/notifications');
 const invitationRoutes = require('./routes/invitations');
 const attachmentRoutes = require('./routes/attachments'); // Import the new routes
 const integrationRoutes = require('./routes/integrations'); // Import the new routes
-
+const searchRoutes = require('./routes/search');
 require('./config/passport');
 
 // --- Middleware ---
@@ -57,7 +57,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/attachments', attachmentRoutes); // Use the new routes
 app.use('/api/integrations', integrationRoutes); // Use the new routes
-
+app.use('/api/search', searchRoutes);
 // --- Socket.io Connection Logic ---
 io.on('connection', (socket) => {
     const { userId } = socket.handshake.query;

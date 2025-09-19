@@ -81,3 +81,11 @@ export const getPrStatus = (taskId) => {
         headers: { 'x-auth-token': token }
     });
 };
+
+export const searchItems = (query) => {
+    const token = localStorage.getItem('token');
+    return axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/search?q=${query}`, {
+        headers: { 'x-auth-token': token }
+    });
+};
+
