@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const { getIO } = require('../socket');
 const axios = require('axios');
 const { Octokit } = require("@octokit/rest");
+const { createAppAuth } = require("@octokit/auth-app");
 
 // This function will be called when GitHub sends an event (e.g., PR merged)
 // This function handles incoming webhook events from GitHub
@@ -166,17 +167,17 @@ exports.saveGithubInstallation = async (req, res) => {
 // --- HELPER FUNCTION ---
 // This new function creates a temporary, authenticated GitHub client for a specific installation.
 const getInstallationClient = async (installationId) => {
-  const auth = createAppAuth({
-    appId: process.env.GITHUB_APP_ID,
-    privateKey: process.env.GITHUB_PRIVATE_KEY,
-    installationId: installationId,
-  });
+    const auth = createAppAuth({
+        appId: process.env.GITHUB_APP_ID,
+        privateKey: process.env.GITHUB_PRIVATE_KEY,
+        installationId: installationId,
+    });
 
-  // Get an installation access token
-  const { token } = await auth({ type: "installation" });
+    // Get an installation access token
+    const { token } = await auth({ type: "installation" });
 
-  // Return a new Octokit client authenticated with that token
-  return new Octokit({ auth: token });
+    // Return a new Octokit client authenticated with that token
+    return new Octokit({ auth: token });
 };
 
 // --- UPGRADED FUNCTION to fetch PR Status ---
@@ -195,12 +196,12 @@ exports.getLinkedItemStatus = async (req, res) => {
         }
 
         const prUrl = linkResult.rows[0].github_item_url;
-        
+
         // --- NEW: Get the installation_id for the project owner ---
         // a. Get the project_id from the task
         const taskResult = await pool.query('SELECT project_id FROM tasks WHERE id = $1', [taskId]);
         const projectId = taskResult.rows[0].project_id;
-        
+
         // b. Get the owner_id from the project
         const projectResult = await pool.query('SELECT owner_id FROM projects WHERE id = $1', [projectId]);
         const ownerId = projectResult.rows[0].owner_id;
