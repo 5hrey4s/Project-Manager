@@ -96,6 +96,8 @@ exports.copilot = async (req, res) => {
             const assignee = members.find(m => m.id === task.assignee_id);
             projectContext += `  - Task Title: "${task.title}" (ID: ${task.id}), Status: ${task.status}, Assigned to: ${assignee ? assignee.username : 'Unassigned'}\n`;
         });
+const models = await genAI.listModels();
+console.log(models);
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
         const prompt = `You are an intelligent project management assistant. Based ONLY on the provided project state, answer the user's question concisely.
