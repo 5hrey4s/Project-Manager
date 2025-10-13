@@ -12,9 +12,9 @@ exports.generateTasks = async (req, res) => {
 
         // --- NEW: Fetching Project Context ---
         const existingTasksResult = await pool.query(
-            'SELECT title, description FROM tasks WHERE project_id = $1 AND is_deleted = false',
-            [projectId]
-        );
+    'SELECT title, description FROM tasks WHERE project_id = $1', // <-- Corrected query
+    [projectId]
+);
         const membersResult = await pool.query(
             `SELECT u.id, u.username FROM users u JOIN project_members pm ON u.id = pm.user_id WHERE pm.project_id = $1`,
             [projectId]
@@ -96,10 +96,9 @@ exports.copilot = async (req, res) => {
             const assignee = members.find(m => m.id === task.assignee_id);
             projectContext += `  - Task Title: "${task.title}" (ID: ${task.id}), Status: ${task.status}, Assigned to: ${assignee ? assignee.username : 'Unassigned'}\n`;
         });
-const models = await genAI.listModels();
-console.log(models);
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
         const prompt = `You are an intelligent project management assistant. Based ONLY on the provided project state, answer the user's question concisely.
         
         ---
