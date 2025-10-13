@@ -28,7 +28,7 @@ exports.generateTasks = async (req, res) => {
         projectContext += `Project Members: ${members.map(m => `${m.username} (ID: ${m.id})`).join(', ')}\n`;
         projectContext += "Existing Tasks:\n" + existingTasks.map(t => `- ${t.title}`).join('\n');
 
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
 
         // --- NEW: A More Advanced, Structured Prompt ---
         const prompt = `You are an expert project manager. Your goal is to break down a high-level objective into actionable tasks.
@@ -97,7 +97,7 @@ exports.copilot = async (req, res) => {
             projectContext += `  - Task Title: "${task.title}" (ID: ${task.id}), Status: ${task.status}, Assigned to: ${assignee ? assignee.username : 'Unassigned'}\n`;
         });
 
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
         const prompt = `You are an intelligent project management assistant. Based ONLY on the provided project state, answer the user's question concisely.
         
         ---
