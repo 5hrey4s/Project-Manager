@@ -1,5 +1,7 @@
 const pool = require('../config/db');
 const { GoogleGenAI } = require("@google/genai");
+
+// Initialize the client with the new, correct class name
 const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
 
 exports.generateTasks = async (req, res) => {
@@ -10,11 +12,11 @@ exports.generateTasks = async (req, res) => {
             return res.status(400).json({ msg: 'A project goal and projectId are required.' });
         }
 
-        // --- NEW: Fetching Project Context ---
+        // --- Fetching Project Context ---
         const existingTasksResult = await pool.query(
-    'SELECT title, description FROM tasks WHERE project_id = $1', // <-- Corrected query
-    [projectId]
-);
+            'SELECT title, description FROM tasks WHERE project_id = $1',
+            [projectId]
+        );
         const membersResult = await pool.query(
             `SELECT u.id, u.username FROM users u JOIN project_members pm ON u.id = pm.user_id WHERE pm.project_id = $1`,
             [projectId]
@@ -23,13 +25,12 @@ exports.generateTasks = async (req, res) => {
         const existingTasks = existingTasksResult.rows;
         const members = membersResult.rows;
 
-        // --- NEW: Building a Rich Context String for the AI ---
+        // --- Building a Rich Context String for the AI ---
         let projectContext = "This is the current state of the project.\n";
         projectContext += `Project Members: ${members.map(m => `${m.username} (ID: ${m.id})`).join(', ')}\n`;
         projectContext += "Existing Tasks:\n" + existingTasks.map(t => `- ${t.title}`).join('\n');
 
-
-        // --- NEW: A More Advanced, Structured Prompt ---
+        // --- A More Advanced, Structured Prompt ---
         const prompt = `You are an expert project manager. Your goal is to break down a high-level objective into actionable tasks.
         
         Based on the provided project context, generate a list of new tasks for the objective: "${goal}".
@@ -46,18 +47,16 @@ exports.generateTasks = async (req, res) => {
         `;
 
         // --- THIS IS THE FIX ---
-        // The new syntax calls generateContent directly from the models service
-        const result = await genAI.models.generateContent({
-            model: "gemini-1.5-flash", // Use a modern, fast model
-            contents: [{ parts: [{ text: prompt }] }]
-        });
-        const response = await result.response;
-        const text = response.text();
+        // Use the new, correct syntax for the @google/genai library
+        const result = await genAI.models.generateContent({
+            model: "gemini-1.5-flash", // Use a modern, fast model
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" } // Ask for JSON output
+        });
+        const response = await result.response;
+        // Parse the JSON directly from the response
+        const generatedTasks = JSON.parse(response.text());
 
-        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const generatedTasks = JSON.parse(cleanedText);
-
-        // Send the rich array of task objects directly
         res.json(generatedTasks);
 
     } catch (error) {
@@ -101,8 +100,6 @@ exports.copilot = async (req, res) => {
             projectContext += `  - Task Title: "${task.title}" (ID: ${task.id}), Status: ${task.status}, Assigned to: ${assignee ? assignee.username : 'Unassigned'}\n`;
         });
 
-
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
         const prompt = `You are an intelligent project management assistant. Based ONLY on the provided project state, answer the user's question concisely.
         
         ---
@@ -114,9 +111,15 @@ const model = genAI.getGenerativeModel({ model: "gemini-pro" });
         "${message}"
         `;
 
-const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        // --- THIS IS THE FIX ---
+        // Use the new, correct syntax for the @google/genai library
+        const result = await genAI.models.generateContent({
+            model: "gemini-1.5-flash", // Use the same modern model
+            contents: [{ parts: [{ text: prompt }] }]
+        });
+        const response = await result.response;
+        const text = response.text();
+
         res.json({ reply: text });
     } catch (error) {
         console.error("Copilot Error:", error);
