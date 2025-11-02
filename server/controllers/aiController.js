@@ -49,7 +49,7 @@ exports.generateTasks = async (req, res) => {
         // --- THIS IS THE FIX ---
         // Use the new, correct syntax for the @google/genai library
         const result = await genAI.models.generateContent({
-            model: "gemini-1.5-flash", // Use a modern, fast model
+            model: "gemini-pro", // Use a modern, fast model
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { responseMimeType: "application/json" } // Ask for JSON output
         });
@@ -114,7 +114,7 @@ exports.copilot = async (req, res) => {
         // --- THIS IS THE FIX ---
         // Use the new, correct syntax for the @google/genai library
         const result = await genAI.models.generateContent({
-            model: "gemini-1.5-flash", // Use the same modern model
+            model: "gemini-pro", // Use the same modern model
             contents: [{ parts: [{ text: prompt }] }]
         });
         const response = await result.response;
