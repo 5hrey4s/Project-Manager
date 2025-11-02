@@ -53,9 +53,10 @@ exports.generateTasks = async (req, res) => {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { responseMimeType: "application/json" } // Ask for JSON output
         });
-        const response = await result.response;
         // Parse the JSON directly from the response
-        const generatedTasks = JSON.parse(response.text());
+        const text = result.candidates[0].content.parts[0].text;
+        const generatedTasks = JSON.parse(text);
+
 
         res.json(generatedTasks);
 
