@@ -28,7 +28,6 @@ exports.generateTasks = async (req, res) => {
         projectContext += `Project Members: ${members.map(m => `${m.username} (ID: ${m.id})`).join(', ')}\n`;
         projectContext += "Existing Tasks:\n" + existingTasks.map(t => `- ${t.title}`).join('\n');
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
 
         // --- NEW: A More Advanced, Structured Prompt ---
         const prompt = `You are an expert project manager. Your goal is to break down a high-level objective into actionable tasks.
@@ -46,9 +45,14 @@ exports.generateTasks = async (req, res) => {
         ---
         `;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        // --- THIS IS THE FIX ---
+        // The new syntax calls generateContent directly from the models service
+        const result = await genAI.models.generateContent({
+            model: "gemini-1.5-flash", // Use a modern, fast model
+            contents: [{ parts: [{ text: prompt }] }]
+        });
+        const response = await result.response;
+        const text = response.text();
 
         const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const generatedTasks = JSON.parse(cleanedText);
@@ -110,10 +114,9 @@ const model = genAI.getGenerativeModel({ model: "gemini-pro" });
         "${message}"
         `;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-
+const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
         res.json({ reply: text });
     } catch (error) {
         console.error("Copilot Error:", error);
