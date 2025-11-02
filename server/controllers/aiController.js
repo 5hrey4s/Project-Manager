@@ -117,9 +117,8 @@ exports.copilot = async (req, res) => {
             model: "gemini-2.5-flash", // Use the same modern model
             contents: [{ parts: [{ text: prompt }] }]
         });
-        const response = await result.response;
-        const text = response.text();
-
+        console.log("============>",result)
+const text = result.response.text();
         res.json({ reply: text });
     } catch (error) {
         console.error("Copilot Error:", error);
