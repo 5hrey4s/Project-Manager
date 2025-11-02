@@ -55,7 +55,7 @@ exports.generateTasks = async (req, res) => {
         });
         // Parse the JSON directly from the response
         const text = result.candidates[0].content.parts[0].text;
-        const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const generatedTasks = JSON.parse(cleanedText);
 
 
