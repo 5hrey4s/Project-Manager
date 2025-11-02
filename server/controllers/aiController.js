@@ -118,7 +118,7 @@ exports.copilot = async (req, res) => {
             contents: [{ parts: [{ text: prompt }] }]
         });
         console.log("============>",result)
-const text = result.response.text();
+const text = result.text();
         res.json({ reply: text });
     } catch (error) {
         console.error("Copilot Error:", error);
