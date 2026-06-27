@@ -3,7 +3,9 @@ const { GoogleGenAI } = require("@google/genai");
 
 // Initialize the client with the new, correct class name
 const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
-
+// Add this to a route to test
+const models = await genAI.models.list();
+console.log("Available models:", models);
 exports.generateTasks = async (req, res) => {
     try {
         const { goal, projectId } = req.body;
@@ -49,7 +51,7 @@ exports.generateTasks = async (req, res) => {
         // --- THIS IS THE FIX ---
         // Use the new, correct syntax for the @google/genai library
         const result = await genAI.models.generateContent({
-            model: "gemini-1.5-flash", // Use a modern, fast model
+            model: "gemini-3.5-flash", // Use a modern, fast model
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { responseMimeType: "application/json" } // Ask for JSON output
         });
@@ -116,9 +118,9 @@ exports.copilot = async (req, res) => {
         `;
 
         // --- THE FIX ---
-        // Changed "gemini-2.5-flash" to "gemini-1.5-flash"
+        // Changed "gemini-3.5-flash" to "gemini-3.5-flash"
         const result = await genAI.models.generateContent({
-            model: "gemini-1.5-flash", 
+            model: "gemini-3.5-flash",
             contents: [{ parts: [{ text: prompt }] }]
         });
 
