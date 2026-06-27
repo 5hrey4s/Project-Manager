@@ -4,9 +4,11 @@ const { GoogleGenAI } = require("@google/genai");
 // Initialize the client with the new, correct class name
 const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
 // Add this to a route to test
-const models = await genAI.models.list();
-console.log("Available models:", models);
+
 exports.generateTasks = async (req, res) => {
+    // Add this to a route to test
+    const models = await genAI.models.list();
+    console.log("Available models:", models);
     try {
         const { goal, projectId } = req.body;
 
