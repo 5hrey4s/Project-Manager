@@ -5,6 +5,23 @@ const { GoogleGenAI } = require("@google/genai");
 const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
 // Add this to a route to test
 
+// Helper for exponential backoff
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function callGeminiWithRetry(model, params, retries = 3, backoff = 1000) {
+    try {
+        return await genAI.models.generateContent(params);
+    } catch (error) {
+        // Only retry on 503 (Unavailable) or 429 (Too Many Requests)
+        if ((error.status === 503 || error.status === 429) && retries > 0) {
+            const jitter = Math.random() * 1000;
+            console.warn(`Gemini API busy (Status ${error.status}). Retrying in ${backoff}ms...`);
+            await sleep(backoff + jitter);
+            return callGeminiWithRetry(model, params, retries - 1, backoff * 2);
+        }
+        throw error;
+    }
+}
 exports.generateTasks = async (req, res) => {
     // Add this to a route to test
     const models = await genAI.models.list();
@@ -52,10 +69,10 @@ exports.generateTasks = async (req, res) => {
 
         // --- THIS IS THE FIX ---
         // Use the new, correct syntax for the @google/genai library
-        const result = await genAI.models.generateContent({
-            model: "gemini-2.5-flash", // Use a modern, fast model
+        const result = await callGeminiWithRetry(genAI.models, {
+            model: "gemini-2.5-flash",
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" } // Ask for JSON output
+            generationConfig: { responseMimeType: "application/json" }
         });
         // Parse the JSON directly from the response
         const text = result.candidates[0].content.parts[0].text;
@@ -119,8 +136,8 @@ exports.copilot = async (req, res) => {
 
         // --- THIS IS THE FIX ---
         // Use the new, correct syntax for the @google/genai library
-        const result = await genAI.models.generateContent({
-            model: "gemini-2.5-flash", // Use the same modern model
+        const result = await callGeminiWithRetry(genAI.models, {
+            model: "gemini-2.5-flash",
             contents: [{ parts: [{ text: prompt }] }]
         });
         console.log("============>", result.candidates[0].content)
