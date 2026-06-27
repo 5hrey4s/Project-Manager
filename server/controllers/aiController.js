@@ -49,7 +49,7 @@ exports.generateTasks = async (req, res) => {
         // --- THIS IS THE FIX ---
         // Use the new, correct syntax for the @google/genai library
         const result = await genAI.models.generateContent({
-            model: "gemini-2.5-flash", // Use a modern, fast model
+            model: "gemini-1.5-flash", // Use a modern, fast model
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { responseMimeType: "application/json" } // Ask for JSON output
         });
@@ -77,6 +77,7 @@ exports.copilot = async (req, res) => {
             return res.status(400).json({ msg: 'Project ID and a message are required.' });
         }
 
+        // --- Database Auth Check ---
         const memberCheck = await pool.query(
             "SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2",
             [projectId, userId]
@@ -85,6 +86,7 @@ exports.copilot = async (req, res) => {
             return res.status(403).json({ msg: 'Forbidden: You are not a member of this project.' });
         }
 
+        // --- Context Preparation ---
         const tasksResult = await pool.query("SELECT * FROM tasks WHERE project_id = $1", [projectId]);
         const membersResult = await pool.query(
             `SELECT u.id, u.username FROM users u JOIN project_members pm ON u.id = pm.user_id WHERE pm.project_id = $1`,
@@ -113,17 +115,18 @@ exports.copilot = async (req, res) => {
         "${message}"
         `;
 
-        // --- THIS IS THE FIX ---
-        // Use the new, correct syntax for the @google/genai library
+        // --- THE FIX ---
+        // Changed "gemini-2.5-flash" to "gemini-1.5-flash"
         const result = await genAI.models.generateContent({
-            model: "gemini-2.5-flash", // Use the same modern model
+            model: "gemini-1.5-flash", 
             contents: [{ parts: [{ text: prompt }] }]
         });
-        console.log("============>", result.candidates[0].content)
+
         const text = result.candidates[0].content.parts[0].text;
         res.json({ reply: text });
     } catch (error) {
         console.error("Copilot Error:", error);
-        res.status(500).json({ msg: 'The AI assistant failed to respond.' });
+        // Specifically catch and return the 403 or error status
+        res.status(error.status || 500).json({ msg: 'The AI assistant failed to respond.', details: error.message });
     }
 };
