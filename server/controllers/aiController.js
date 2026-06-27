@@ -123,16 +123,22 @@ exports.copilot = async (req, res) => {
             projectContext += `  - Task Title: "${task.title}" (ID: ${task.id}), Status: ${task.status}, Assigned to: ${assignee ? assignee.username : 'Unassigned'}\n`;
         });
 
-        const prompt = `You are an intelligent project management assistant. Based ONLY on the provided project state, answer the user's question concisely.
-        
-        ---
-        CONTEXT:
-        ${projectContext}
-        ---
-        
-        USER'S QUESTION:
-        "${message}"
-        `;
+        const prompt = `You are an intelligent project management assistant. 
+Follow these rules for your response:
+1. Provide a natural, conversational, and polite answer to the user's question.
+2. Use the provided PROJECT STATE as your source of truth.
+3. NEVER output the raw data, list of members, or raw task list structure. 
+4. Summarize information into full, readable sentences. 
+   - Example: Instead of "- Task: test, Status: Done", say "The task 'test' has been completed."
+
+---
+PROJECT STATE:
+${projectContext}
+---
+
+USER'S QUESTION:
+"${message}"
+`;
 
         // --- THIS IS THE FIX ---
         // Use the new, correct syntax for the @google/genai library
